@@ -1,7 +1,21 @@
 import random
 import time
 
+# Tamanho total do tabuleiro
+MAX_SIZE = 10
+# Define indicador de peça Preta
+BLACK_PIECE = 'p'
+# Define indicador de peça Dama Preta
+BLACK_PIECE_CHECK = 'P'
+# Define indicador de peça Branca
+WHITE_PIECE = 'b'
+# Define indicador de peça Dama Branca
+WHITE_PIECE_CHECK = 'B'
+# Define indicador de casa sem peça
+BLANK = '-'
+
 class Tabuleiro:
+
     def __init__(self,n):
         self.casas=[]
         self.pretas=0
@@ -9,11 +23,23 @@ class Tabuleiro:
         self.lado=n
     
     def imprima(self):
-        print('  | 0 1 2 3 4 5 6 7 8 9\n--+-------------------+')
+        # Inicializa o cabeçalho do tabuleiro
+        board_header = "  | "
+        # Appenda a quantidade de colunas para o cabeçalho
+        for i in range(MAX_SIZE):
+            board_header += "{0} ".format(i)
+        board_header += "\n--+----------------"
+        # Imprime o cabeçalho
+        print(board_header)
+        # Mostra as linhas do tabuleiro
         for i in range(self.lado):
+            # Imprime o identificador da liha
             print(i,'|',end=' ')
+            # Percorre as colunas
             for j in range(self.lado):
-                if (j+i)%2==0: print('-',end=' ')
+                # Verifica se é espaço para inserir as peças
+                if (j+i)%2==0:
+                    print('-',end=' ')
                 else:
                     print(self.casas[i][j].cont,end=' ')
             print()
@@ -54,10 +80,10 @@ class Tabuleiro:
             for j in range(self.lado):
                 if (i+j)%2==1:
                     if i<=3:
-                        self.casas[i][j].cont='p'
+                        self.casas[i][j].cont = BLACK_PIECE
                         self.pretas+=1
                     elif i>=6:
-                        self.casas[i][j].cont='b'
+                        self.casas[i][j].cont = WHITE_PIECE
                         self.brancas+=1
 
     #Verifique se uma dama foi formada na rodada
@@ -70,11 +96,12 @@ class Tabuleiro:
                         casa.cont=vez[1]
     
     #Há apenas damas no tabuleiro?
-    def qsó_damas(self):
+    def qso_damas(self):
         for i in range(self.lado):
             for j in range(self.lado):
                 casa=self.casas[i][j]
-                if casa.cont=='p' or casa.cont=='b':
+                # Verifica se a casa contém uma peça preta ou branca
+                if casa.cont == BLACK_PIECE or casa.cont == WHITE_PIECE:
                     return(0)
         return(1)
                     
@@ -87,16 +114,17 @@ class Casa:
         self.adir=None #Casa vizinha da frente e direita
         self.aesq=None #Casa vizinha da frente e esquerda
         #####################################################
-        self.cont='-'  #'-' livre, 'b' branca, 'B' dama branca, 'p' preta, 'P' dama preta
-        self.posi=i
-        self.posj=j
+        #'+' livre, 'b' branca, 'B' dama branca, 'p' preta, 'P' dama preta
+        self.cont = BLANK
+        self.posi = i
+        self.posj = j
     
     #Gera as vizinhas da casa. Note que as casas na borda do tabuleiro não têm vizinhas.
     def gere_adj_desta(self,i,j):
         if j!=0 and i!=0: self.aesq=tabuleiro.casas[i-1][j-1]
-        if j!=9 and i!=0: self.adir=tabuleiro.casas[i-1][j+1]
-        if j!=0 and i!=9: self.vesq=tabuleiro.casas[i+1][j-1]
-        if j!=9 and i!=9: self.vdir=tabuleiro.casas[i+1][j+1]
+        if j!=(MAX_SIZE - 1) and i!=0: self.adir=tabuleiro.casas[i-1][j+1]
+        if j!=0 and i!=(MAX_SIZE - 1): self.vesq=tabuleiro.casas[i+1][j-1]
+        if j!=(MAX_SIZE - 1) and i!=(MAX_SIZE - 1): self.vdir=tabuleiro.casas[i+1][j+1]
 
 #Se sem captura disponível, encontra o caminho que uma dama pode fazer em sua 1a jogada.
 #Se com captura disponível, retorna a lista de capturas possíveis. Cada elemento de tal
@@ -110,11 +138,12 @@ def diagonal_livre(av,avseguinte,vezseguinte):
         av_oc='fora'
         return(2,None)
         
-    if av_oc=='-': #Espaço à direita livre
+    if av_oc == BLANK: #Espaço à direita livre
         return(0,av)
     elif av_oc in vezseguinte:
         if avseguinte!=None:
-            if avseguinte.cont=='-':
+            # Verifica se 
+            if avseguinte.cont == BLANK:
                 return(1,[av,avseguinte])
         return(2,None)
     else: #Peça amiga
@@ -125,7 +154,7 @@ def diagonal_direccional(p0,p1,forçar_p1=0):
     diagonal=[]
     while p1!=None:
         #Passar o arg forçar_p1=1 força a entrada de p1 na diagonal, mesmo se não estiver livre
-        if p1.cont!='-' and forçar_p1==0:
+        if p1.cont != BLANK and forçar_p1==0:
             return(diagonal)
         else:
             forçar_p1=0
@@ -216,10 +245,11 @@ def move_dama(tabuleiro,peça,vezseguinte):
                     lrcaptura.append([p0,dd[y]])
             return(lrcaptura,1)
 
-    else: return(llivre,2) #Não há captura disponível
+    else:
+        return(llivre,2) #Não há captura disponível
 
 #Acha as possibilidades de movimento de uma peça ordinária
-def move_ordinária(tabuleiro,peça,vezseguinte):
+def move_ordinaria(tabuleiro,peça,vezseguinte):
     lcaptura=detectar_inimigo(tabuleiro,peça,0,vezseguinte)
     if lcaptura!=[]: return(lcaptura,1) #Peça tem pelo menos uma captura
     
@@ -227,16 +257,20 @@ def move_ordinária(tabuleiro,peça,vezseguinte):
     e=peça.aesq
     
     #Teste se a peça está na periferia do tabuleiro
-    if d!=None: d_oc=d.cont
-    else: d_oc='fora'
-    if e!=None: e_oc=e.cont
-    else: e_oc='fora'
+    if d!=None:
+        d_oc = d.cont
+    else:
+        d_oc = 'fora'
+    if e!=None:
+        e_oc = e.cont
+    else:
+        e_oc = 'fora'
     
     llivre=[]
-    #Há espaço vazio adjacente?
-    if d_oc=='-': #Espaço à direita livre
+    # Verifica se existe espaço livre
+    if d_oc == BLANK: #Espaço à direita livre
         llivre.append(d)
-    if e_oc=='-': #Espaço à esquerda livre
+    if e_oc == BLANK: #Espaço à esquerda livre
         llivre.append(e)
     
     if llivre!=[]: return(llivre,2) #Peça pode andar, mas sem captura
@@ -244,12 +278,14 @@ def move_ordinária(tabuleiro,peça,vezseguinte):
     return([],0) #Peça imobilizada
 
 def dobradinha(tabuleiro,peça,vezseguinte):
-    #Se tiver chegado à última fileira, transforme a peça em dama e continue
+    #Se tiver chegado à última fileira, transforme a peça em dama
     if peça.aesq==None and peça.adir==None:
-        if peça.cont=='b':
-            peça.cont='B'
-        if peça.cont=='p':
-            peça.cont='P'
+        # Verifica se a peça que chegou na última fileira é branca
+        if peça.cont == WHITE_PIECE:
+            peça.cont = WHITE_PIECE_CHECK
+        # Verifica se a peça que chegou na última fileira é preta
+        if peça.cont == BLACK_PIECE:
+            peça.cont = BLACK_PIECE_CHECK
         
     return(detectar_inimigo(tabuleiro,peça,0,vezseguinte))
 
@@ -279,19 +315,19 @@ def detectar_inimigo(tabuleiro,peça,bloqueada,vezseguinte):
     #Há peça inimiga adjacente? Pode ser capturada?
     if ad_oc==foul or ad_oc==FOUL:
         if ad.adir!=None:
-            if ad.adir.cont=='-': #Captura disponível à direita
+            if ad.adir.cont == BLANK: #Captura disponível à direita
                 lcaptura.append([ad,ad.adir])
     if ae_oc==foul or ae_oc==FOUL:
         if ae.aesq!=None:
-            if ae.aesq.cont=='-': #Caputra disponível à esquerda
+            if ae.aesq.cont == BLANK: #Caputra disponível à esquerda
                 lcaptura.append([ae,ae.aesq])
     if vd_oc==foul or vd_oc==FOUL:
         if vd.vdir!=None:
-            if vd.vdir.cont=='-': #Captura disponível à direita
+            if vd.vdir.cont == BLANK: #Captura disponível à direita
                 lcaptura.append([vd,vd.vdir])
     if ve_oc==foul or ve_oc==FOUL:
         if ve.vesq!=None:
-            if ve.vesq.cont=='-': #Caputra disponível à esquerda
+            if ve.vesq.cont == BLANK: #Caputra disponível à esquerda
                 lcaptura.append([ve,ve.vesq])
     return(lcaptura)
 
@@ -302,7 +338,7 @@ def calcule_jogadas(tabuleiro,vez,vezseguinte,apenas_calcule1):
 
     if apenas_calcule1: #Caso em que há dobradinha: Apenas a peça que comeu deve se mover de novo.
         peça=apenas_calcule1
-        if peça.cont==vez[0]: lista,bandeira=move_ordinária(tabuleiro,peça,vezseguinte)
+        if peça.cont==vez[0]: lista,bandeira=move_ordinaria(tabuleiro,peça,vezseguinte)
         elif peça.cont==vez[1]: lista,bandeira=move_dama(tabuleiro,peça,vezseguinte)
         for n in range(len(lista)):
             jogadascapt.append([peça,lista[n]])
@@ -315,7 +351,7 @@ def calcule_jogadas(tabuleiro,vez,vezseguinte,apenas_calcule1):
                 casa=tabuleiro.casas[i][j]
                 if casa.cont==vez[0] or casa.cont==vez[1]:
                     peça=casa #Esta casa contém uma peça da cor da vez
-                    if casa.cont==vez[0]: lista,bandeira=move_ordinária(tabuleiro,peça,vezseguinte)
+                    if casa.cont==vez[0]: lista,bandeira=move_ordinaria(tabuleiro,peça,vezseguinte)
                     if casa.cont==vez[1]: lista,bandeira=move_dama(tabuleiro,peça,vezseguinte)
                 
                     #Há captura disponível
@@ -334,8 +370,8 @@ def calcule_jogadas(tabuleiro,vez,vezseguinte,apenas_calcule1):
 
 #Imprime as jogadas possíveis na saída padrão
 def imprima_jogadas(lista,bandeiramor):
-    print("Origem     | Destino")
-    print("ID : i j   |   i j")
+    print("\n    Origem | Destino")
+    print("ID :  i j  |   i j")
     if bandeiramor:
         for i in range(len(lista)):
             print(format(i,'02'),':',lista[i][0].posi,lista[i][0].posj,'  |  ',
@@ -350,7 +386,6 @@ def imprima_jogadas(lista,bandeiramor):
 def escolha_jogada(número_de_jogadas):
     while 1:
         try:
-            print("=-"*28+'=')
             x=int(input("Digite o ID da jogada que quer fazer ou -1 para sair: "))
         except:
             print("Você deve digitar um inteiro!")
@@ -361,20 +396,18 @@ def escolha_jogada(número_de_jogadas):
             print("Saída forçada")
             exit()
         else:
-            print("Entrada fora do intervalo de ID dado. Tente novamente.")
+            print("Movimentação não existe. Tente novamente.")
             
-def jogada_aleatória(número_de_jogadas):
+def jogada_aleatoria(número_de_jogadas):
     return(random.randint(0,número_de_jogadas-1))
     
 ##############################################################################################
 #Função cerne. O cont_empate é iniciado se só houver damas no tabuleiro e aí é incrementado a
 #cada jogada sem captura. Se chegar a 20, é declarado empate.
 def jogue(tabuleiro,vez,cont_empate=0,apenas_calcule1=0):
-
-    naoinverta=0
-    print()
-    print("Placar (brancas x pretas):",tabuleiro.brancas,"x",tabuleiro.pretas)
-    print()
+    
+    invert=True
+    print("Placar (brancas x pretas): ",tabuleiro.brancas," x ",tabuleiro.pretas)
     if (vez=='bB'):
         print(" >| Vez das brancas   |")
         vezseguinte='pP'
@@ -385,9 +418,7 @@ def jogue(tabuleiro,vez,cont_empate=0,apenas_calcule1=0):
     
     #Calcula possíveis jogadas e determina se o jogo findou
     if tabuleiro.brancas==0 or tabuleiro.pretas==0:
-        print("=-"*20)
-        print("Fim de Jogo")
-        print("=-"*20)
+        print("#############\n#Fim de jogo#\n#############")
         return
     jogadas,bandeira=calcule_jogadas(tabuleiro,vez,vezseguinte,apenas_calcule1)
     apenas_calcule1=0
@@ -398,10 +429,10 @@ def jogue(tabuleiro,vez,cont_empate=0,apenas_calcule1=0):
     print("\nJogadas disponíveis:")
     imprima_jogadas(jogadas,bandeira)
     
-    if vez=='bB':
+    if vez == 'bB':
         x=escolha_jogada(len(jogadas)) #Jogador, escolha uma jogada
     else:
-        x=jogada_aleatória(len(jogadas)) #Computador, jogue aleatòriamente
+        x=jogada_aleatoria(len(jogadas)) #Computador, jogue aleatòriamente
         time.sleep(1.5) #Apenas finge que o computador está pensando
         
     if bandeira: #Captura
@@ -412,16 +443,19 @@ def jogue(tabuleiro,vez,cont_empate=0,apenas_calcule1=0):
         casadep=jogada[1][1]
         
         casadep.cont=jogada[0].cont
-        casaant.cont='-'
-        retirar.cont='-'
+        casaant.cont = BLANK
+        retirar.cont = BLANK
         
         if vez=='bB': tabuleiro.pretas-=1
         else: tabuleiro.brancas-=1
         
         if dobradinha(tabuleiro,casadep,vezseguinte)!=[]:
-            naoinverta=1    #O tabuleiro não deve ser invertido porque a vez continua a mesma
-            vezseguinte=vez #Necessário porque a vez continua a mesma na próxima rodada
-            apenas_calcule1=casadep #Na próxima vez, apenas considera esta peça porque é dobradinha
+            # Indica que o tabuleiro não deve ser invertido
+            invert=False
+            # Necessário porque a vez continua a mesma na próxima rodada
+            vezseguinte=vez 
+            #Na próxima vez, apenas considera esta peça porque é dobradinha
+            apenas_calcule1=casadep
             print("###########################")
             print("#Outra captura disponível!#")
             print("###########################")
@@ -431,13 +465,14 @@ def jogue(tabuleiro,vez,cont_empate=0,apenas_calcule1=0):
         casaant=jogada[0]
         casadep=jogada[1]
         casadep.cont=jogada[0].cont
-        casaant.cont='-'
-        if tabuleiro.qsó_damas(): cont_empate+=1
+        casaant.cont = BLANK
+        if tabuleiro.qso_damas(): cont_empate+=1
 
     tabuleiro.verifique_dama(vez)
-    if not naoinverta: tabuleiro.inverta()
+    if invert:
+        tabuleiro.inverta()
     jogue(tabuleiro,vezseguinte,cont_empate,apenas_calcule1)
 
-tabuleiro=Tabuleiro(10)
+tabuleiro=Tabuleiro(MAX_SIZE)
 tabuleiro.gere_casas()
 jogue(tabuleiro,'bB')
