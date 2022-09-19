@@ -1,478 +1,479 @@
-import random
+from copy import deepcopy
 import time
+import math
 
-# Tamanho total do tabuleiro
-MAX_SIZE = 10
-# Define indicador de peça Preta
-BLACK_PIECE = 'p'
-# Define indicador de peça Dama Preta
-BLACK_PIECE_CHECK = 'P'
-# Define indicador de peça Branca
-WHITE_PIECE = 'b'
-# Define indicador de peça Dama Branca
-WHITE_PIECE_CHECK = 'B'
-# Define indicador de casa sem peça
-BLANK = '-'
+# Definindo cores utilizadas
+ansi_black = "\u001b[30m"
+ansi_red = "\u001b[31m"
+ansi_green = "\u001b[32m"
+ansi_yellow = "\u001b[33m"
+ansi_blue = "\u001b[34m"
+ansi_magenta = "\u001b[35m"
+ansi_cyan = "\u001b[36m"
+ansi_white = "\u001b[37m"
+ansi_reset = "\u001b[0m"
 
-class Tabuleiro:
+# Definindo indicadores das peças e suas Damas
+BLACK_PIECE = "p"
+WHITE_PIECE = "b"
+BLACK_PIECE_CHECK = "P"
+WHITE_PIECE_CHECK = "B"
 
-    def __init__(self,n):
-        self.casas=[]
-        self.pretas=0
-        self.brancas=0
-        self.lado=n
-    
-    def imprima(self):
-        # Inicializa o cabeçalho do tabuleiro
-        board_header = "  | "
-        # Appenda a quantidade de colunas para o cabeçalho
-        for i in range(MAX_SIZE):
-            board_header += "{0} ".format(i)
-        board_header += "\n--+----------------"
-        # Imprime o cabeçalho
-        print(board_header)
-        # Mostra as linhas do tabuleiro
-        for i in range(self.lado):
-            # Imprime o identificador da liha
-            print(i,'|',end=' ')
-            # Percorre as colunas
-            for j in range(self.lado):
-                # Verifica se é espaço para inserir as peças
-                if (j+i)%2==0:
-                    print('-',end=' ')
-                else:
-                    print(self.casas[i][j].cont,end=' ')
-            print()
-    
-    #Gira o tabuleiro, o que é útil ao trocar a vez (a direita da branca vira a esquerda da preta)
-    def inverta(self):
-        for i in range(self.lado):
-            for j in range(self.lado):
-                vtemp=self.casas[i][j].vesq
-                atemp=self.casas[i][j].aesq
-                self.casas[i][j].vesq=self.casas[i][j].adir
-                self.casas[i][j].aesq=self.casas[i][j].vdir
-                self.casas[i][j].vdir=atemp
-                self.casas[i][j].adir=vtemp
-                
-    #Apenas para conferir se cada casa relevante para o jogo tem os vizinhos correctos
-    def conferência(self):
-        for i in range(self.lado):
-            for j in range(self.lado):
-                if (i+j)%2==1: 
-                    casebre=self.casas[i][j]
-                    print(i,j,casebre.aesq,casebre.adir,casebre.vesq,casebre.vdir)
-                
-    #Invocada apenas uma vez para determinar as adjacências de cada casa
-    def gere_casas(self):
-        for i in range(self.lado):
-            self.casas.append([])
-            for j in range(self.lado):
-                self.casas[i].append(Casa(i,j))
-            
-        for i in range(self.lado):
-           for j in range(self.lado):
-               if (i+j)%2==1:
-                   self.casas[i][j].gere_adj_desta(i,j)
-         
-        #Preenche o tabuleiro vazio com a configuração inicial do jogo
-        for i in range(self.lado):
-            for j in range(self.lado):
-                if (i+j)%2==1:
-                    if i<=3:
-                        self.casas[i][j].cont = BLACK_PIECE
-                        self.pretas+=1
-                    elif i>=6:
-                        self.casas[i][j].cont = WHITE_PIECE
-                        self.brancas+=1
+# Definindo outras condições
+BOARD_SIZE = 10
+EXIT_CONDITION = "-1"
+SURRENDER_CONDITION = "s"
+BLANK_SPACE = "---"
 
-    #Verifique se uma dama foi formada na rodada
-    def verifique_dama(self,vez):
-        for i in range(self.lado):
-            for j in range(self.lado):
-                casa=self.casas[i][j]
-                if casa.cont==vez[0]:
-                    if casa.adir==None and casa.aesq==None:
-                        casa.cont=vez[1]
-    
-    #Há apenas damas no tabuleiro?
-    def qso_damas(self):
-        for i in range(self.lado):
-            for j in range(self.lado):
-                casa=self.casas[i][j]
-                # Verifica se a casa contém uma peça preta ou branca
-                if casa.cont == BLACK_PIECE or casa.cont == WHITE_PIECE:
-                    return(0)
-        return(1)
-                    
-class Casa:   
-    def __init__(self,i,j):
-        #####################################################
-        # Árvore de vizinhança: cada casa tem quatro vizinhas
-        self.vesq=None #Casa vizinha de trás e esquerda
-        self.vdir=None #Casa vizinha de trás e direita
-        self.adir=None #Casa vizinha da frente e direita
-        self.aesq=None #Casa vizinha da frente e esquerda
-        #####################################################
-        #'+' livre, 'b' branca, 'B' dama branca, 'p' preta, 'P' dama preta
-        self.cont = BLANK
-        self.posi = i
-        self.posj = j
-    
-    #Gera as vizinhas da casa. Note que as casas na borda do tabuleiro não têm vizinhas.
-    def gere_adj_desta(self,i,j):
-        if j!=0 and i!=0: self.aesq=tabuleiro.casas[i-1][j-1]
-        if j!=(MAX_SIZE - 1) and i!=0: self.adir=tabuleiro.casas[i-1][j+1]
-        if j!=0 and i!=(MAX_SIZE - 1): self.vesq=tabuleiro.casas[i+1][j-1]
-        if j!=(MAX_SIZE - 1) and i!=(MAX_SIZE - 1): self.vdir=tabuleiro.casas[i+1][j+1]
+class Node:
+    # Construtor da classe Nó
+    def __init__(self, board, move=None, parent=None, value=None):
+        self.board = board
+        self.value = value
+        self.move = move
+        self.parent = parent
 
-#Se sem captura disponível, encontra o caminho que uma dama pode fazer em sua 1a jogada.
-#Se com captura disponível, retorna a lista de capturas possíveis. Cada elemento de tal
-#lista é uma outra lista dada por [casa da peça a ser comida, casa posterior à peça a ser comida].
-#Neste último caso, como a dama pode se mover para qualquer casa livre após a peça comida (se outra
-#captura não estiver disponível, é claro), a lista de captura retornada deve ser tratada para
-#incluir todas as casas possíveis de parada após a peça comida.
-def diagonal_livre(av,avseguinte,vezseguinte):
-    if av!=None: av_oc=av.cont
-    else:
-        av_oc='fora'
-        return(2,None)
-        
-    if av_oc == BLANK: #Espaço à direita livre
-        return(0,av)
-    elif av_oc in vezseguinte:
-        if avseguinte!=None:
-            # Verifica se 
-            if avseguinte.cont == BLANK:
-                return(1,[av,avseguinte])
-        return(2,None)
-    else: #Peça amiga
-        return(2,None)
-
-#Lista todas as casas livres a partir de p1 (incluso) na direcção p0:p1 (p0 e p1 são casas)
-def diagonal_direccional(p0,p1,forçar_p1=0):
-    diagonal=[]
-    while p1!=None:
-        #Passar o arg forçar_p1=1 força a entrada de p1 na diagonal, mesmo se não estiver livre
-        if p1.cont != BLANK and forçar_p1==0:
-            return(diagonal)
+    # Checa e determina possíveis jogadas (em listas)
+    def get_children(self, minimizing_player):
+        current_state = deepcopy(self.board)
+        available_moves = []
+        children_states = []
+        big_letter = ""
+        queen_row = 0
+        if minimizing_player is True:
+            available_moves = Checkers.find_available_moves(current_state)
+            big_letter = BLACK_PIECE_CHECK
+            queen_row = BOARD_SIZE - 1
         else:
-            forçar_p1=0
-            diagonal.append(p1)
-            
-            #Determina a direcção p0:p1 para adicionar a casa seguinte
-            if p1==p0.adir:
-                p0=p1
-                p1=p1.adir
-            elif p1==p0.vdir:
-                p0=p1
-                p1=p1.vdir
-            elif p1==p0.aesq:
-                p0=p1
-                p1=p1.aesq
-            elif p1==p0.vesq:
-                p0=p1
-                p1=p1.vesq
-    return(diagonal)
+            available_moves = Checkers.find_player_available_moves(current_state)
+            big_letter = WHITE_PIECE_CHECK
+            queen_row = 0
+        for i in range(len(available_moves)):
+            old_i = available_moves[i][0]
+            old_j = available_moves[i][1]
+            new_i = available_moves[i][2]
+            new_j = available_moves[i][3]
+            state = deepcopy(current_state)
+            Checkers.make_a_move(state, old_i, old_j, new_i, new_j, big_letter, queen_row)
+            children_states.append(Node(state, [old_i, old_j, new_i, new_j]))
+        return children_states
 
-#Função que rege a dama sem que ela tenha feito captura alguma até o momento.
-#lcaptura: Lista de capturas possíveis, se houver.
-#llivre: Lista de movimentos possíveis se não houver captura disponível.
-#lrcaptura: Lista de capturas possíveis, se houver, com *todas* as casas de parada possíveis.
-def move_dama(tabuleiro,peça,vezseguinte):
-    lcaptura=[];llivre=[];fim=[0,0,0,0];ret=[None,None,None,None]
-    ad=peça.adir;ae=peça.aesq;vd=peça.vdir;ve=peça.vesq
-    if ad!=None: viz0=[ad,ad.adir]
-    else:        viz0=[None,None]
-    if ae!=None: viz1=[ae,ae.aesq]
-    else:        viz1=[None,None]
-    if vd!=None: viz2=[vd,vd.vdir]
-    else:        viz2=[None,None]
-    if ve!=None: viz3=[ve,ve.vesq]
-    else:        viz3=[None,None]
-    viz=[viz0,viz1,viz2,viz3]
-    
-    #Varre as quatro diagonais emanando da dama. Para quando obstruída por uma peça ou pela borda
-    #do tabuleiro.
-    for z in range(4):
-        fim[z],ret[z]=diagonal_livre(viz[z][0],viz[z][1],vezseguinte)
-        
-        if fim[z]==1: lcaptura.append(ret[z])
-            
-        while (fim[z]==0): #Enquanto não encontrar obstrução, continue varrendo.
-            fim[z],ret[z]=diagonal_livre(viz[z][0],viz[z][1],vezseguinte)
-            if viz[z][1]==None and fim[z]==0: #Obstrução: Fim do tabuleiro
-                llivre.append(ret[z])
-                break
-            elif fim[z]==0: #Sem obstrução. Determina a direcção viz[z][0]:viz[z][1]
-                if viz[z][1]==viz[z][0].adir:
-                    viz[z][0]=viz[z][1]
-                    viz[z][1]=viz[z][1].adir
-                elif viz[z][1]==viz[z][0].vdir:
-                    viz[z][0]=viz[z][1]
-                    viz[z][1]=viz[z][1].vdir
-                elif viz[z][1]==viz[z][0].aesq:
-                    viz[z][0]=viz[z][1]
-                    viz[z][1]=viz[z][1].aesq
-                elif viz[z][1]==viz[z][0].vesq:
-                    viz[z][0]=viz[z][1]
-                    viz[z][1]=viz[z][1].vesq
-            
-                llivre.append(ret[z])
-            
-            elif fim[z]==1: #Obstrução: Peça inimiga capturável
-                lcaptura.append(ret[z])
- 
-    if 1 in fim: #Há ao menos uma captura disponível
-        lrcaptura=[]
-        maiscaptura=0 #0 se não há captura dupla, 1 cc.
-        for dupla in lcaptura:
-            p0=dupla[0];p1=dupla[1] #p0 é a peça a ser capturada
-            dd=diagonal_direccional(p0,p1,1) #Determine as casas livres após a captura
-            #Para cada casa livre após a captura, averigue se adjacente a ela há alguma peça
-            #inimiga capturável. Se sim, haverá captura dupla.
-            for y in range(len(dd)):
-                if detectar_inimigo(tabuleiro,dd[y],p0,vezseguinte)!=[]:
-                    maiscaptura=1 #Bandeira de captura dupla activada
-                    lrcaptura.append([p0,dd[y]])
-        if maiscaptura: #Haverá captura dupla após esta captura
-            return(lrcaptura,1)
-        else: #Não havendo captura dupla, a dama pode parar em qualquer casa após a captura.
-            for dupla in lcaptura:
-                p0=dupla[0];p1=dupla[1]
-                dd=diagonal_direccional(p0,p1,1)
-                for y in range(len(dd)):
-                    lrcaptura.append([p0,dd[y]])
-            return(lrcaptura,1)
+    def set_value(self, value):
+        self.value = value
 
-    else:
-        return(llivre,2) #Não há captura disponível
+    def get_board(self):
+        return self.board
 
-#Acha as possibilidades de movimento de uma peça ordinária
-def move_ordinaria(tabuleiro,peça,vezseguinte):
-    lcaptura=detectar_inimigo(tabuleiro,peça,0,vezseguinte)
-    if lcaptura!=[]: return(lcaptura,1) #Peça tem pelo menos uma captura
-    
-    d=peça.adir
-    e=peça.aesq
-    
-    #Teste se a peça está na periferia do tabuleiro
-    if d!=None:
-        d_oc = d.cont
-    else:
-        d_oc = 'fora'
-    if e!=None:
-        e_oc = e.cont
-    else:
-        e_oc = 'fora'
-    
-    llivre=[]
-    # Verifica se existe espaço livre
-    if d_oc == BLANK: #Espaço à direita livre
-        llivre.append(d)
-    if e_oc == BLANK: #Espaço à esquerda livre
-        llivre.append(e)
-    
-    if llivre!=[]: return(llivre,2) #Peça pode andar, mas sem captura
-    
-    return([],0) #Peça imobilizada
 
-def dobradinha(tabuleiro,peça,vezseguinte):
-    #Se tiver chegado à última fileira, transforme a peça em dama
-    if peça.aesq==None and peça.adir==None:
-        # Verifica se a peça que chegou na última fileira é branca
-        if peça.cont == WHITE_PIECE:
-            peça.cont = WHITE_PIECE_CHECK
-        # Verifica se a peça que chegou na última fileira é preta
-        if peça.cont == BLACK_PIECE:
-            peça.cont = BLACK_PIECE_CHECK
-        
-    return(detectar_inimigo(tabuleiro,peça,0,vezseguinte))
+class Checkers:
+    # Construtor do Tabuleiro
+    def __init__(self):
+        self.matrix = [[], [], [], [], [], [], [], [], [], []]
+        self.player_turn = True
+        self.computer_pieces = 20
+        self.player_pieces = 20
+        self.available_moves = []
 
-#Detecta se peça inimiga nas adjacências imediatas pode ser capturada.
-#O argumento bloqueada é passado em caso de uma dama estar calculando captura dupla. Tal argumento
-#representa a peça que será eliminada na primeira captura, bloqueando-a e assim evitando que a
-#função considere o movimento de volta como uma possível captura dupla.
-def detectar_inimigo(tabuleiro,peça,bloqueada,vezseguinte):
-    ad=peça.adir
-    ae=peça.aesq
-    ve=peça.vesq
-    vd=peça.vdir
-    
-    foul=vezseguinte[0] #Ordinária oponente
-    FOUL=vezseguinte[1] #Dama oponente
-    #Teste se a peça está na periferia do tabuleiro ou se está bloqueada
-    if ad!=None and ad!=bloqueada: ad_oc=ad.cont
-    else: ad_oc='fora'
-    if ae!=None and ae!=bloqueada: ae_oc=ae.cont
-    else: ae_oc='fora'
-    if vd!=None and vd!=bloqueada: vd_oc=vd.cont
-    else: vd_oc='fora'
-    if ve!=None and ve!=bloqueada: ve_oc=ve.cont
-    else: ve_oc='fora'
-    
-    lcaptura=[]
-    #Há peça inimiga adjacente? Pode ser capturada?
-    if ad_oc==foul or ad_oc==FOUL:
-        if ad.adir!=None:
-            if ad.adir.cont == BLANK: #Captura disponível à direita
-                lcaptura.append([ad,ad.adir])
-    if ae_oc==foul or ae_oc==FOUL:
-        if ae.aesq!=None:
-            if ae.aesq.cont == BLANK: #Caputra disponível à esquerda
-                lcaptura.append([ae,ae.aesq])
-    if vd_oc==foul or vd_oc==FOUL:
-        if vd.vdir!=None:
-            if vd.vdir.cont == BLANK: #Captura disponível à direita
-                lcaptura.append([vd,vd.vdir])
-    if ve_oc==foul or ve_oc==FOUL:
-        if ve.vesq!=None:
-            if ve.vesq.cont == BLANK: #Caputra disponível à esquerda
-                lcaptura.append([ve,ve.vesq])
-    return(lcaptura)
+        for row in self.matrix:
+            for i in range(BOARD_SIZE):
+                row.append(BLANK_SPACE)
+        self.position_computer()
+        self.position_player()
 
-#Cria a lista de jogadas possíveis para o jogador com a vez
-def calcule_jogadas(tabuleiro,vez,vezseguinte,apenas_calcule1):
-    jogadasord=[];jogadascapt=[]
-    bandeiramor=0 #Indica se há captura disponível para a cor da vez
+    # Define posições do computador (3 primeiras linhas - peças pretas)
+    def position_computer(self):
+        for i in range(4):
+            for j in range(BOARD_SIZE):
+                if (i + j) % 2 == 1:
+                    self.matrix[i][j] = (BLACK_PIECE + str(i) + str(j))
 
-    if apenas_calcule1: #Caso em que há dobradinha: Apenas a peça que comeu deve se mover de novo.
-        peça=apenas_calcule1
-        if peça.cont==vez[0]: lista,bandeira=move_ordinaria(tabuleiro,peça,vezseguinte)
-        elif peça.cont==vez[1]: lista,bandeira=move_dama(tabuleiro,peça,vezseguinte)
-        for n in range(len(lista)):
-            jogadascapt.append([peça,lista[n]])
-        return(jogadascapt,1)
-    
-    #Varre o tabuleiro inteiro a procura de peças da cor da vez
-    for i in range(tabuleiro.lado):
-        for j in range(tabuleiro.lado):
-            if (i+j)%2!=0:
-                casa=tabuleiro.casas[i][j]
-                if casa.cont==vez[0] or casa.cont==vez[1]:
-                    peça=casa #Esta casa contém uma peça da cor da vez
-                    if casa.cont==vez[0]: lista,bandeira=move_ordinaria(tabuleiro,peça,vezseguinte)
-                    if casa.cont==vez[1]: lista,bandeira=move_dama(tabuleiro,peça,vezseguinte)
-                
-                    #Há captura disponível
-                    if bandeira==1:
-                        bandeiramor=1
-                        for n in range(len(lista)):
-                            jogadascapt.append([peça,lista[n]])
-                    
-                    #Há movimento disponível
-                    elif bandeira==2:
-                        for n in range(len(lista)):
-                            jogadasord.append([peça,lista[n]])
-                            
-    if bandeiramor: return(jogadascapt,bandeiramor) #Alguma peça da vez pode capturar
-    else: return(jogadasord,bandeiramor)
+    # Define posições do jogador (3 últimas linhas - peças brancas)
+    def position_player(self):
+        for i in range(6, BOARD_SIZE, 1):
+            for j in range(BOARD_SIZE):
+                if (i + j) % 2 == 1:
+                    self.matrix[i][j] = (WHITE_PIECE + str(i) + str(j))
 
-#Imprime as jogadas possíveis na saída padrão
-def imprima_jogadas(lista,bandeiramor):
-    print("\n    Origem | Destino")
-    print("ID :  i j  |   i j")
-    if bandeiramor:
-        for i in range(len(lista)):
-            print(format(i,'02'),':',lista[i][0].posi,lista[i][0].posj,'  |  ',
-            lista[i][1][1].posi,lista[i][1][1].posj)
-    else:
-        for i in range(len(lista)):
-            print(format(i,'02'),':',lista[i][0].posi,lista[i][0].posj,'  |  ',
-            lista[i][1].posi,lista[i][1].posj)
-    print()
+    # Define e apresenta tabuleiro
+    def print_matrix(self):
+        i = 0
+        print("\n")
+        print("                    TABULEIRO                ")
+        print("    _________________________________________")
+        print("   |                                         |")
+        for row in self.matrix:
+            print(i, end="  | ")
+            i += 1
+            for elem in row:
+                print(elem, end=" ")
+            print("|")
+        print("   |_________________________________________|")
+        for j in range(BOARD_SIZE):
+            if j == 0:
+                j = "      0"
+            print(j, end="   ")
+        print("\n")
 
-#Trata a entrada do usuário para que seleccione uma jogada válida ou abandone o jogo
-def escolha_jogada(número_de_jogadas):
-    while 1:
-        try:
-            x=int(input("Digite o ID da jogada que quer fazer ou -1 para sair: "))
-        except:
-            print("Você deve digitar um inteiro!")
-            continue
-        if x<número_de_jogadas and x>=0:
-            return(x)
-        elif x==-1:
-            print("Saída forçada")
+    # Recebe Input do Jogador
+    def get_player_input(self):
+        available_moves = Checkers.find_player_available_moves(self.matrix)
+        if len(available_moves) == 0:
+            if self.computer_pieces > self.player_pieces:
+                print(
+                    ansi_red + "Você não possui movimentos disponíveis, e tem menos peças que o adversário. Você Perdeu!" + ansi_reset)
+            else:
+                print(ansi_yellow + "Você não tem movimentos disponíveis.\nJogo Terminado!" + ansi_reset)
             exit()
+        self.player_pieces = 0
+        self.computer_pieces = 0
+        while True:    
+            old = ""
+            coord1 = input("Escolha a peca [i,j]: ")
+            if coord1 == EXIT_CONDITION:
+                print(ansi_cyan + "Jogo Acabou!" + ansi_reset)
+                exit()
+            elif coord1 == SURRENDER_CONDITION:
+                print(ansi_cyan + "Você se rendeu!" + ansi_reset)
+                exit()
+            coord2 = input("Para onde [i,j]: ")
+            if coord2 == WHITE_PIECE_CHECK:                         #//FIXME rever esse ponto...
+                print(ansi_cyan + "Jogo Acabou!" + ansi_reset)
+                exit()
+            elif coord2 == SURRENDER_CONDITION:
+                print(ansi_cyan + "Você se rendeu!" + ansi_reset)
+                exit()
+            old = coord1.split(",")
+            new = coord2.split(",")
+
+            if len(old) != 2 or len(new) != 2 or not old[0].isdigit() or not old[1].isdigit() or not new[0].isdigit() or not new[1].isdigit():
+                print(ansi_red + "Entrada Inválida!" + ansi_reset)
+            else:
+                old_i = old[0]
+                old_j = old[1]
+                new_i = new[0]
+                new_j = new[1]
+                move = [int(old_i), int(old_j), int(new_i), int(new_j)]
+                if move not in available_moves:
+                    print(ansi_red + "Movimentação Inválida!" + ansi_reset)
+                # Define que pode mover e move
+                else:
+                    Checkers.make_a_move(self.matrix, int(old_i), int(old_j), int(new_i), int(new_j), WHITE_PIECE_CHECK, 0)
+                    for m in range(BOARD_SIZE):
+                        for n in range(BOARD_SIZE):
+                            if self.matrix[m][n][0] == BLACK_PIECE or self.matrix[m][n][0] == BLACK_PIECE_CHECK:
+                                self.computer_pieces += 1
+                            elif self.matrix[m][n][0] == WHITE_PIECE or self.matrix[m][n][0] == WHITE_PIECE_CHECK:
+                                self.player_pieces += 1
+                    break
+
+    # Checa se é possível pular a peça - Computador
+    @staticmethod
+    def check_jumps(board, old_i, old_j, via_i, via_j, new_i, new_j):
+        if new_i > (BOARD_SIZE - 1) or new_i < 0:
+            return False
+        if new_j > (BOARD_SIZE - 1) or new_j < 0:
+            return False
+        if board[via_i][via_j] == BLANK_SPACE:
+            return False
+        if board[via_i][via_j][0] == BLACK_PIECE_CHECK or board[via_i][via_j][0] == BLACK_PIECE:
+            return False
+        if board[new_i][new_j] != BLANK_SPACE:
+            return False
+        if board[old_i][old_j] == BLANK_SPACE:
+            return False
+        if board[old_i][old_j][0] == WHITE_PIECE or board[old_i][old_j][0] == WHITE_PIECE_CHECK:
+            return False
+        return True
+
+    # Checa se é possível pular a peça - Jogador
+    @staticmethod
+    def check_player_jumps(board, old_i, old_j, via_i, via_j, new_i, new_j):
+        if new_i > (BOARD_SIZE - 1) or new_i < 0:
+            return False
+        if new_j > (BOARD_SIZE - 1) or new_j < 0:
+            return False
+        if board[via_i][via_j] == BLANK_SPACE:
+            return False
+        if board[via_i][via_j][0] == WHITE_PIECE_CHECK or board[via_i][via_j][0] == WHITE_PIECE:
+            return False
+        if board[new_i][new_j] != BLANK_SPACE:
+            return False
+        if board[old_i][old_j] == BLANK_SPACE:
+            return False
+        if board[old_i][old_j][0] == BLACK_PIECE or board[old_i][old_j][0] == BLACK_PIECE_CHECK:
+            return False
+        return True
+
+    # Checa se é possível mover a peça - Computador
+    @staticmethod
+    def check_moves(board, old_i, old_j, new_i, new_j):
+        if new_i > (BOARD_SIZE - 1) or new_i < 0:
+            return False
+        if new_j > (BOARD_SIZE - 1) or new_j < 0:
+            return False
+        if board[old_i][old_j] == BLANK_SPACE:
+            return False
+        if board[new_i][new_j] != BLANK_SPACE:
+            return False
+        if board[old_i][old_j][0] == WHITE_PIECE or board[old_i][old_j][0] == WHITE_PIECE_CHECK:
+            return False
+        if board[new_i][new_j] == BLANK_SPACE:
+            return True
+
+    # Checa se é possível mover a peça - Jogador
+    @staticmethod
+    def check_player_moves(board, old_i, old_j, new_i, new_j):
+        if new_i > (BOARD_SIZE - 1) or new_i < 0:
+            return False
+        if new_j > (BOARD_SIZE - 1) or new_j < 0:
+            return False
+        if board[old_i][old_j] == BLANK_SPACE:
+            return False
+        if board[new_i][new_j] != BLANK_SPACE:
+            return False
+        if board[old_i][old_j][0] == BLACK_PIECE or board[old_i][old_j][0] == BLACK_PIECE_CHECK:
+            return False
+        if board[new_i][new_j] == BLANK_SPACE:
+            return True
+
+    # Encontra movimentos possíveis a partir das listas de movimentos e pulos - Computador
+    @staticmethod
+    def find_available_moves(board):
+        available_moves = []
+        available_jumps = []
+        for m in range(BOARD_SIZE):
+            for n in range(BOARD_SIZE):
+                if board[m][n][0] == BLACK_PIECE:
+                    if Checkers.check_moves(board, m, n, m + 1, n + 1):
+                        available_moves.append([m, n, m + 1, n + 1])
+                    if Checkers.check_moves(board, m, n, m + 1, n - 1):
+                        available_moves.append([m, n, m + 1, n - 1])
+                    if Checkers.check_jumps(board, m, n, m + 1, n - 1, m + 2, n - 2):
+                        available_jumps.append([m, n, m + 2, n - 2])
+                    if Checkers.check_jumps(board, m, n, m + 1, n + 1, m + 2, n + 2):
+                        available_jumps.append([m, n, m + 2, n + 2])
+                elif board[m][n][0] == BLACK_PIECE_CHECK:
+                    if Checkers.check_moves(board, m, n, m + 1, n + 1):
+                        available_moves.append([m, n, m + 1, n + 1])
+                    if Checkers.check_moves(board, m, n, m + 1, n - 1):
+                        available_moves.append([m, n, m + 1, n - 1])
+                    if Checkers.check_moves(board, m, n, m - 1, n - 1):
+                        available_moves.append([m, n, m - 1, n - 1])
+                    if Checkers.check_moves(board, m, n, m - 1, n + 1):
+                        available_moves.append([m, n, m - 1, n + 1])
+                    if Checkers.check_jumps(board, m, n, m + 1, n - 1, m + 2, n - 2):
+                        available_jumps.append([m, n, m + 2, n - 2])
+                    if Checkers.check_jumps(board, m, n, m - 1, n - 1, m - 2, n - 2):
+                        available_jumps.append([m, n, m - 2, n - 2])
+                    if Checkers.check_jumps(board, m, n, m - 1, n + 1, m - 2, n + 2):
+                        available_jumps.append([m, n, m - 2, n + 2])
+                    if Checkers.check_jumps(board, m, n, m + 1, n + 1, m + 2, n + 2):
+                        available_jumps.append([m, n, m + 2, n + 2])
+        return (available_jumps, available_moves)[len(available_jumps) == 0]
+
+    # Encontra movimentos possíveis a partir das listas de movimentos e pulos - Jogador
+    @staticmethod
+    def find_player_available_moves(board):
+        available_moves = []
+        available_jumps = []
+        for m in range(BOARD_SIZE):
+            for n in range(BOARD_SIZE):
+                if board[m][n][0] == WHITE_PIECE:
+                    if Checkers.check_player_moves(board, m, n, m - 1, n - 1):
+                        available_moves.append([m, n, m - 1, n - 1])
+                    if Checkers.check_player_moves(board, m, n, m - 1, n + 1):
+                        available_moves.append([m, n, m - 1, n + 1])
+                    if Checkers.check_player_jumps(board, m, n, m - 1, n - 1, m - 2, n - 2):
+                        available_jumps.append([m, n, m - 2, n - 2])
+                    if Checkers.check_player_jumps(board, m, n, m - 1, n + 1, m - 2, n + 2):
+                        available_jumps.append([m, n, m - 2, n + 2])
+                elif board[m][n][0] == WHITE_PIECE_CHECK:
+                    if Checkers.check_player_moves(board, m, n, m - 1, n - 1):
+                        available_moves.append([m, n, m - 1, n - 1])
+                    if Checkers.check_player_moves(board, m, n, m - 1, n + 1):
+                        available_moves.append([m, n, m - 1, n + 1])
+                    if Checkers.check_player_jumps(board, m, n, m - 1, n - 1, m - 2, n - 2):
+                        available_jumps.append([m, n, m - 2, n - 2])
+                    if Checkers.check_player_jumps(board, m, n, m - 1, n + 1, m - 2, n + 2):
+                        available_jumps.append([m, n, m - 2, n + 2])
+                    if Checkers.check_player_moves(board, m, n, m + 1, n - 1):
+                        available_moves.append([m, n, m + 1, n - 1])
+                    if Checkers.check_player_jumps(board, m, n, m + 1, n - 1, m + 2, n - 2):
+                        available_jumps.append([m, n, m + 2, n - 2])
+                    if Checkers.check_player_moves(board, m, n, m + 1, n + 1):
+                        available_moves.append([m, n, m + 1, n + 1])
+                    if Checkers.check_player_jumps(board, m, n, m + 1, n + 1, m + 2, n + 2):
+                        available_jumps.append([m, n, m + 2, n + 2])
+        return (available_jumps, available_moves)[len(available_jumps) == 0]
+
+    # Calcula heurística das jogadas possíveis, avaliando o que é 'melhor'
+    @staticmethod
+    def calculate_heuristics(board):
+        result = 0
+        mine = 0
+        opp = 0
+        for i in range(BOARD_SIZE):
+            for j in range(BOARD_SIZE):
+                if board[i][j][0] == BLACK_PIECE or board[i][j][0] == BLACK_PIECE_CHECK:
+                    mine += 1
+                    if board[i][j][0] == BLACK_PIECE:
+                        result += 5
+                    if board[i][j][0] == BLACK_PIECE_CHECK:
+                        result += 10
+                    if i == 0 or j == 0 or i == (BOARD_SIZE - 1) or j == (BOARD_SIZE - 1):
+                        result += (BOARD_SIZE - 1)
+                    if i + 1 > (BOARD_SIZE - 1) or j - 1 < 0 or i - 1 < 0 or j + 1 > (BOARD_SIZE - 1):
+                        continue
+                    if (board[i + 1][j - 1][0] == WHITE_PIECE or board[i + 1][j - 1][0] == WHITE_PIECE_CHECK) and board[i - 1][
+                        j + 1] == BLANK_SPACE:
+                        result -= 3
+                    if (board[i + 1][j + 1][0] == WHITE_PIECE or board[i + 1][j + 1] == WHITE_PIECE_CHECK) and board[i - 1][j - 1] == BLANK_SPACE:
+                        result -= 3
+                    if board[i - 1][j - 1][0] == WHITE_PIECE_CHECK and board[i + 1][j + 1] == BLANK_SPACE:
+                        result -= 3
+
+                    if board[i - 1][j + 1][0] == WHITE_PIECE_CHECK and board[i + 1][j - 1] == BLANK_SPACE:
+                        result -= 3
+                    if i + 2 > (BOARD_SIZE - 1) or i - 2 < 0:
+                        continue
+                    if (board[i + 1][j - 1][0] == WHITE_PIECE_CHECK or board[i + 1][j - 1][0] == WHITE_PIECE) and board[i + 2][
+                        j - 2] == BLANK_SPACE:
+                        result += 6
+                    if i + 2 > (BOARD_SIZE - 1) or j + 2 > (BOARD_SIZE - 1):
+                        continue
+                    if (board[i + 1][j + 1][0] == WHITE_PIECE_CHECK or board[i + 1][j + 1][0] == WHITE_PIECE) and board[i + 2][
+                        j + 2] == BLANK_SPACE:
+                        result += 6
+
+                elif board[i][j][0] == WHITE_PIECE or board[i][j][0] == WHITE_PIECE_CHECK:
+                    opp += 1
+
+        return result + (mine - opp) * 1000
+
+    # Avalia jogadas a partir do calculado acima
+    def evaluate_states(self):
+        tempoInicial = time.time()
+        current_state = Node(deepcopy(self.matrix))
+
+        first_computer_moves = current_state.get_children(True)
+        if len(first_computer_moves) == 0:
+            if self.player_pieces > self.computer_pieces:
+                print(ansi_yellow + "Computador não tem mais movimentos disponíveis, e você tem peças sobrando." + ansi_reset)
+                print("=-"*BOARD_SIZE+"=")
+                print(ansi_green + "VOCÊ GANHOU!" + ansi_reset)
+                print("=-"*BOARD_SIZE+"=")
+                exit()
+            else:
+                print(ansi_yellow + "Computador não tem mais movimentos disponíveis." + ansi_reset)
+                print("=-"*BOARD_SIZE+"=")
+                print(ansi_green + "JOGO ACABOU!" + ansi_reset)
+                print("=-"*BOARD_SIZE+"=")
+                exit()
+        dict = {}
+        for i in range(len(first_computer_moves)):
+            child = first_computer_moves[i]
+            value = Checkers.minimax(child.get_board(), 4, -math.inf, math.inf, False)
+            dict[value] = child
+        if len(dict.keys()) == 0:
+            print(ansi_green + "Computador está encurralado." + ansi_reset)
+            print("=-"*BOARD_SIZE+"=")
+            print(ansi_green + "VOCÊ GANHOU!" + ansi_reset)
+            print("=-"*BOARD_SIZE+"=")
+            exit()
+        new_board = dict[max(dict)].get_board()
+        move = dict[max(dict)].move
+        self.matrix = new_board
+        tempoFinal = time.time()
+        print("Computador moveu peça da (" + str(move[0]) + "," + str(move[1]) + ") para a posição (" + str(move[2]) + "," + str(move[3]) + ").")
+        print("Levou " + str(tempoFinal - tempoInicial) + " segundos para pensar e jogar")
+
+    # Calculo minimax - Alphabeta
+    @staticmethod
+    def minimax(board, depth, alpha, beta, maximizing_player):
+        if depth == 0:
+            return Checkers.calculate_heuristics(board)
+        current_state = Node(deepcopy(board))
+        if maximizing_player is True:
+            max_eval = -math.inf
+            for child in current_state.get_children(True):
+                ev = Checkers.minimax(child.get_board(), depth - 1, alpha, beta, False)
+                max_eval = max(max_eval, ev)
+                alpha = max(alpha, ev)
+                if beta <= alpha:
+                    break
+            current_state.set_value(max_eval)
+            return max_eval
         else:
-            print("Movimentação não existe. Tente novamente.")
-            
-def jogada_aleatoria(número_de_jogadas):
-    return(random.randint(0,número_de_jogadas-1))
-    
-##############################################################################################
-#Função cerne. O cont_empate é iniciado se só houver damas no tabuleiro e aí é incrementado a
-#cada jogada sem captura. Se chegar a 20, é declarado empate.
-def jogue(tabuleiro,vez,cont_empate=0,apenas_calcule1=0):
-    
-    invert=True
-    print("Placar (brancas x pretas): ",tabuleiro.brancas," x ",tabuleiro.pretas)
-    if (vez=='bB'):
-        print(" >| Vez das brancas   |")
-        vezseguinte='pP'
-    else:
-        print(" >| Vez das pretas    |")
-        vezseguinte='bB'
-    tabuleiro.imprima()
-    
-    #Calcula possíveis jogadas e determina se o jogo findou
-    if tabuleiro.brancas==0 or tabuleiro.pretas==0:
-        print("#############\n#Fim de jogo#\n#############")
-        return
-    jogadas,bandeira=calcule_jogadas(tabuleiro,vez,vezseguinte,apenas_calcule1)
-    apenas_calcule1=0
-    if jogadas==[] or cont_empate==20:
-        print("########\n#Empate#\n########")
-        return
+            min_eval = math.inf
+            for child in current_state.get_children(False):
+                ev = Checkers.minimax(child.get_board(), depth - 1, alpha, beta, True)
+                min_eval = min(min_eval, ev)
+                beta = min(beta, ev)
+                if beta <= alpha:
+                    break
+            current_state.set_value(min_eval)
+            return min_eval
 
-    print("\nJogadas disponíveis:")
-    imprima_jogadas(jogadas,bandeira)
-    
-    if vez == 'bB':
-        x=escolha_jogada(len(jogadas)) #Jogador, escolha uma jogada
-    else:
-        x=jogada_aleatoria(len(jogadas)) #Computador, jogue aleatòriamente
-        time.sleep(1.5) #Apenas finge que o computador está pensando
-        
-    if bandeira: #Captura
-        cont_empate=0
-        jogada=jogadas[x]
-        casaant=jogada[0]
-        retirar=jogada[1][0]
-        casadep=jogada[1][1]
-        
-        casadep.cont=jogada[0].cont
-        casaant.cont = BLANK
-        retirar.cont = BLANK
-        
-        if vez=='bB': tabuleiro.pretas-=1
-        else: tabuleiro.brancas-=1
-        
-        if dobradinha(tabuleiro,casadep,vezseguinte)!=[]:
-            # Indica que o tabuleiro não deve ser invertido
-            invert=False
-            # Necessário porque a vez continua a mesma na próxima rodada
-            vezseguinte=vez 
-            #Na próxima vez, apenas considera esta peça porque é dobradinha
-            apenas_calcule1=casadep
-            print("###########################")
-            print("#Outra captura disponível!#")
-            print("###########################")
-        
-    else: #Sem captura
-        jogada=jogadas[x]
-        casaant=jogada[0]
-        casadep=jogada[1]
-        casadep.cont=jogada[0].cont
-        casaant.cont = BLANK
-        if tabuleiro.qso_damas(): cont_empate+=1
+    # Realiza jogada
+    @staticmethod
+    def make_a_move(board, old_i, old_j, new_i, new_j, big_letter, queen_row):
+        letter = board[old_i][old_j][0]
+        i_difference = old_i - new_i
+        j_difference = old_j - new_j
+        if i_difference == -2 and j_difference == 2:
+            board[old_i + 1][old_j - 1] = BLANK_SPACE
 
-    tabuleiro.verifique_dama(vez)
-    if invert:
-        tabuleiro.inverta()
-    jogue(tabuleiro,vezseguinte,cont_empate,apenas_calcule1)
+        elif i_difference == 2 and j_difference == 2:
+            board[old_i - 1][old_j - 1] = BLANK_SPACE
 
-tabuleiro=Tabuleiro(MAX_SIZE)
-tabuleiro.gere_casas()
-jogue(tabuleiro,'bB')
+        elif i_difference == 2 and j_difference == -2:
+            board[old_i - 1][old_j + 1] = BLANK_SPACE
+
+        elif i_difference == -2 and j_difference == -2:
+            board[old_i + 1][old_j + 1] = BLANK_SPACE
+
+        if new_i == queen_row:
+            letter = big_letter
+        
+        board[old_i][old_j] = BLANK_SPACE
+        board[new_i][new_j] = letter + str(new_i) + str(new_j)
+
+    def play(self):
+        print("\n\n")
+        print("|=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=|")
+        print("|              REGRAS IMPORTANTES DO JOGO:              |")
+        print("|                                                       |")
+        print("| 1. As entradas são feitas no formato \"linha,coluna\".  |")
+        print("| 2. O jogo pode ser finalizado digitando \"-1\"          |")
+        print(f"| 3. Você pode desistir digitando \"s\".                  |")
+        print("|                                                       |")
+        print("|                                 Desenvolvido por:     |")
+        print("|                            Mateus Ferro               |")
+        print("|                            Tasi Pasin                 |")
+        print("|                            João Gabriel               |")
+        print("|                            Gabriel Skorei             |")
+        print("|                                                       |")
+        print("|                   Tenha um Bom Jogo!                  |")
+        print("|=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=|")
+        while True:
+            self.print_matrix()
+            if self.player_turn is True:
+                print(ansi_cyan + "\nTurno do Jogador" + ansi_reset)
+                self.get_player_input()
+            else:
+                print(ansi_cyan + "Turno do Computador..." + ansi_reset)
+                self.evaluate_states()
+
+            if self.player_pieces == 0:
+                self.print_matrix()
+                print(ansi_red + "Sem peças disponíveis.\nVocê perdeu!" + ansi_reset)
+                exit()
+            elif self.computer_pieces == 0:
+                self.print_matrix()
+                print(ansi_green + "O computador não tem mais peças.\nVocê ganhou!" + ansi_reset)
+                exit()
+            self.player_turn = not self.player_turn
+
+if __name__ == '__main__':
+    checkers = Checkers()
+    checkers.play()
