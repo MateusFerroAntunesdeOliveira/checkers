@@ -117,16 +117,14 @@ class Checkers:
     # Recebe Input do Jogador
     def get_player_input(self):
         available_moves = Checkers.find_player_available_moves(self.matrix)
-        if len(available_moves) == 0:
-            if self.computer_pieces > self.player_pieces:
-                print(
-                    ansi_red + "Você não possui movimentos disponíveis, e tem menos peças que o adversário. Você Perdeu!" + ansi_reset)
-            else:
-                print(ansi_yellow + "Você não tem movimentos disponíveis.\nJogo Terminado!" + ansi_reset)
-            exit()
-        self.player_pieces = 0
-        self.computer_pieces = 0
-        while True:    
+        while len(available_moves) > 0:   
+            if len(available_moves) == 0:
+                if self.computer_pieces > self.player_pieces:
+                    print(
+                        ansi_red + "Você não possui movimentos disponíveis, e tem menos peças que o adversário. Você Perdeu!" + ansi_reset)
+                else:
+                    print(ansi_yellow + "Você não tem movimentos disponíveis.\nJogo Terminado!" + ansi_reset)
+                exit()
             old = ""
             coord1 = input("Escolha a peca [i,j]: ")
             if coord1 == EXIT_CONDITION:
@@ -136,7 +134,7 @@ class Checkers:
                 print(ansi_cyan + "Você se rendeu!" + ansi_reset)
                 exit()
             coord2 = input("Para onde [i,j]: ")
-            if coord2 == WHITE_PIECE_CHECK:                         #//FIXME rever esse ponto...
+            if coord2 == EXIT_CONDITION:
                 print(ansi_cyan + "Jogo Acabou!" + ansi_reset)
                 exit()
             elif coord2 == SURRENDER_CONDITION:
@@ -157,14 +155,13 @@ class Checkers:
                     print(ansi_red + "Movimentação Inválida!" + ansi_reset)
                 # Define que pode mover e move
                 else:
-                    Checkers.make_a_move(self.matrix, int(old_i), int(old_j), int(new_i), int(new_j), WHITE_PIECE_CHECK, 0)
-                    for m in range(BOARD_SIZE):
-                        for n in range(BOARD_SIZE):
-                            if self.matrix[m][n][0] == BLACK_PIECE or self.matrix[m][n][0] == BLACK_PIECE_CHECK:
-                                self.computer_pieces += 1
-                            elif self.matrix[m][n][0] == WHITE_PIECE or self.matrix[m][n][0] == WHITE_PIECE_CHECK:
-                                self.player_pieces += 1
-                    break
+                    killed = Checkers.make_a_move(self.matrix, int(old_i), int(old_j), int(new_i), int(new_j), WHITE_PIECE_CHECK, 0)
+                    available_moves.clear();
+                    if killed:
+                        self.computer_pieces -= 1
+                        available_moves = Checkers.Checkers.find_player_available_jumps(self.matrix, int(new_i), int(new_j))
+                        if len(available_moves) > 0:
+                            self.print_matrix()
 
     # Checa se é possível pular a peça - Computador
     @staticmethod
@@ -271,6 +268,7 @@ class Checkers:
                         available_jumps.append([m, n, m + 2, n + 2])
         return (available_jumps, available_moves)[len(available_jumps) == 0]
 
+
     # Encontra movimentos possíveis a partir das listas de movimentos e pulos - Jogador
     @staticmethod
     def find_player_available_moves(board):
@@ -278,33 +276,43 @@ class Checkers:
         available_jumps = []
         for m in range(BOARD_SIZE):
             for n in range(BOARD_SIZE):
-                if board[m][n][0] == WHITE_PIECE:
-                    if Checkers.check_player_moves(board, m, n, m - 1, n - 1):
-                        available_moves.append([m, n, m - 1, n - 1])
-                    if Checkers.check_player_moves(board, m, n, m - 1, n + 1):
-                        available_moves.append([m, n, m - 1, n + 1])
-                    if Checkers.check_player_jumps(board, m, n, m - 1, n - 1, m - 2, n - 2):
-                        available_jumps.append([m, n, m - 2, n - 2])
-                    if Checkers.check_player_jumps(board, m, n, m - 1, n + 1, m - 2, n + 2):
-                        available_jumps.append([m, n, m - 2, n + 2])
-                elif board[m][n][0] == WHITE_PIECE_CHECK:
-                    if Checkers.check_player_moves(board, m, n, m - 1, n - 1):
-                        available_moves.append([m, n, m - 1, n - 1])
-                    if Checkers.check_player_moves(board, m, n, m - 1, n + 1):
-                        available_moves.append([m, n, m - 1, n + 1])
-                    if Checkers.check_player_jumps(board, m, n, m - 1, n - 1, m - 2, n - 2):
-                        available_jumps.append([m, n, m - 2, n - 2])
-                    if Checkers.check_player_jumps(board, m, n, m - 1, n + 1, m - 2, n + 2):
-                        available_jumps.append([m, n, m - 2, n + 2])
-                    if Checkers.check_player_moves(board, m, n, m + 1, n - 1):
-                        available_moves.append([m, n, m + 1, n - 1])
-                    if Checkers.check_player_jumps(board, m, n, m + 1, n - 1, m + 2, n - 2):
-                        available_jumps.append([m, n, m + 2, n - 2])
-                    if Checkers.check_player_moves(board, m, n, m + 1, n + 1):
-                        available_moves.append([m, n, m + 1, n + 1])
-                    if Checkers.check_player_jumps(board, m, n, m + 1, n + 1, m + 2, n + 2):
-                        available_jumps.append([m, n, m + 2, n + 2])
+                available_jumps.extend(Checkers.find_player_available_jumps(board, m, n))
+                available_moves.extend(Checkers.find_player_available_moves(board, m, n))
         return (available_jumps, available_moves)[len(available_jumps) == 0]
+    
+
+    @staticmethod
+    def find_player_available_jumps(board, m, n):
+        available_jumps = []
+        if Checkers.check_player_jumps(board, m, n, m - 1, n - 1, m - 2, n - 2):
+            available_jumps.append([m, n, m - 2, n - 2])
+        if Checkers.check_player_jumps(board, m, n, m - 1, n + 1, m - 2, n + 2):
+            available_jumps.append([m, n, m - 2, n + 2])
+        if Checkers.check_player_jumps(board, m, n, m + 1, n - 1, m + 2, n - 2):
+            available_jumps.append([m, n, m + 2, n - 2])
+        if Checkers.check_player_jumps(board, m, n, m + 1, n + 1, m + 2, n + 2):
+            available_jumps.append([m, n, m + 2, n + 2])
+        return available_jumps
+    
+    @staticmethod
+    def find_player_available_moves(board, m, n):
+        result = []
+        if board[m][n][0] == WHITE_PIECE:
+            if Checkers.check_player_moves(board, m, n, m - 1, n - 1):
+                result.append([m, n, m - 1, n - 1])
+            if Checkers.check_player_moves(board, m, n, m - 1, n + 1):
+                result.append([m, n, m - 1, n + 1])
+        elif board[m][n][0] == WHITE_PIECE_CHECK:
+            if Checkers.check_player_moves(board, m, n, m - 1, n - 1):
+                result.append([m, n, m - 1, n - 1])
+            if Checkers.check_player_moves(board, m, n, m + 1, n + 1):
+                result.append([m, n, m + 1, n + 1])
+            if Checkers.check_player_moves(board, m, n, m - 1, n + 1):
+                result.append([m, n, m - 1, n + 1])
+            if Checkers.check_player_moves(board, m, n, m + 1, n - 1):
+                result.append([m, n, m + 1, n - 1])
+        return result
+        
 
     # Calcula heurística das jogadas possíveis, avaliando o que é 'melhor'
     @staticmethod
@@ -417,6 +425,7 @@ class Checkers:
     # Realiza jogada
     @staticmethod
     def make_a_move(board, old_i, old_j, new_i, new_j, big_letter, queen_row):
+        killed = True
         letter = board[old_i][old_j][0]
         i_difference = old_i - new_i
         j_difference = old_j - new_j
@@ -431,12 +440,15 @@ class Checkers:
 
         elif i_difference == -2 and j_difference == -2:
             board[old_i + 1][old_j + 1] = BLANK_SPACE
-
+        else:
+            killed = False
+        
         if new_i == queen_row:
             letter = big_letter
         
         board[old_i][old_j] = BLANK_SPACE
         board[new_i][new_j] = letter + str(new_i) + str(new_j)
+        return killed
 
     def play(self):
         print("\n\n")
