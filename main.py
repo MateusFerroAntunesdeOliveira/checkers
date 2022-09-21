@@ -113,6 +113,31 @@ class Checkers:
                 j = "      0"
             print(j, end="   ")
         print("\n")
+        
+    @staticmethod
+    def get_play_input(message):
+        coordinate_i = None
+        coordinate_j = None
+        while None == coordinate_i or None == coordinate_j:
+            entry = input(f"{message} [i,j]: ")
+            if entry == EXIT_CONDITION:
+                print(ansi_cyan + "Jogo Acabou!" + ansi_reset)
+                exit()
+            elif entry == SURRENDER_CONDITION:
+                print(ansi_cyan + "Você se rendeu!" + ansi_reset)
+                exit()
+            coordinates = entry.split(",")
+            if len(coordinates) == 2 and Checkers.check_value_int_and_inside_board(coordinates[0]) and Checkers.check_value_int_and_inside_board(coordinates[1]):
+                coordinate_i = int(coordinates[0])
+                coordinate_j = int(coordinates[1])
+            else:
+                print(ansi_red + "Entrada Inválida!" + ansi_reset)
+        return coordinate_i, coordinate_j
+        
+        
+    @staticmethod
+    def check_value_int_and_inside_board(value):
+        return value.isdigit() and int(value) >= 0 and int(value) < BOARD_SIZE
 
     # Recebe Input do Jogador
     def get_player_input(self):
@@ -125,43 +150,21 @@ class Checkers:
                 else:
                     print(ansi_yellow + "Você não tem movimentos disponíveis.\nJogo Terminado!" + ansi_reset)
                 exit()
-            old = ""
-            coord1 = input("Escolha a peca [i,j]: ")
-            if coord1 == EXIT_CONDITION:
-                print(ansi_cyan + "Jogo Acabou!" + ansi_reset)
-                exit()
-            elif coord1 == SURRENDER_CONDITION:
-                print(ansi_cyan + "Você se rendeu!" + ansi_reset)
-                exit()
-            coord2 = input("Para onde [i,j]: ")
-            if coord2 == EXIT_CONDITION:
-                print(ansi_cyan + "Jogo Acabou!" + ansi_reset)
-                exit()
-            elif coord2 == SURRENDER_CONDITION:
-                print(ansi_cyan + "Você se rendeu!" + ansi_reset)
-                exit()
-            old = coord1.split(",")
-            new = coord2.split(",")
-
-            if len(old) != 2 or len(new) != 2 or not old[0].isdigit() or not old[1].isdigit() or not new[0].isdigit() or not new[1].isdigit():
-                print(ansi_red + "Entrada Inválida!" + ansi_reset)
+            
+            old_i, old_j = Checkers.get_play_input("Escolha a peca")
+            new_i, new_j = Checkers.get_play_input("Para onde")
+            move = [int(old_i), int(old_j), int(new_i), int(new_j)]
+            if move not in available_moves:
+                print(ansi_red + "Movimentação Inválida!" + ansi_reset)
+            # Define que pode mover e move
             else:
-                old_i = old[0]
-                old_j = old[1]
-                new_i = new[0]
-                new_j = new[1]
-                move = [int(old_i), int(old_j), int(new_i), int(new_j)]
-                if move not in available_moves:
-                    print(ansi_red + "Movimentação Inválida!" + ansi_reset)
-                # Define que pode mover e move
-                else:
-                    killed = Checkers.make_a_move(self.matrix, int(old_i), int(old_j), int(new_i), int(new_j), WHITE_PIECE_CHECK, 0)
-                    available_moves.clear();
-                    if killed:
-                        self.computer_pieces -= 1
-                        available_moves = Checkers.Checkers.find_player_available_jumps(self.matrix, int(new_i), int(new_j))
-                        if len(available_moves) > 0:
-                            self.print_matrix()
+                killed = Checkers.make_a_move(self.matrix, int(old_i), int(old_j), int(new_i), int(new_j), WHITE_PIECE_CHECK, 0)
+                available_moves.clear()
+                if killed:
+                    self.computer_pieces -= 1
+                    available_moves = Checkers.Checkers.find_player_available_jumps(self.matrix, int(new_i), int(new_j))
+                    if len(available_moves) > 0:
+                        self.print_matrix()
 
     # Checa se é possível pular a peça - Computador
     @staticmethod
@@ -277,7 +280,7 @@ class Checkers:
         for m in range(BOARD_SIZE):
             for n in range(BOARD_SIZE):
                 available_jumps.extend(Checkers.find_player_available_jumps(board, m, n))
-                available_moves.extend(Checkers.find_player_available_moves(board, m, n))
+                available_moves.extend(Checkers.find_player_available_moves_from(board, m, n))
         return (available_jumps, available_moves)[len(available_jumps) == 0]
     
 
@@ -295,7 +298,7 @@ class Checkers:
         return available_jumps
     
     @staticmethod
-    def find_player_available_moves(board, m, n):
+    def find_player_available_moves_from(board, m, n):
         result = []
         if board[m][n][0] == WHITE_PIECE:
             if Checkers.check_player_moves(board, m, n, m - 1, n - 1):
