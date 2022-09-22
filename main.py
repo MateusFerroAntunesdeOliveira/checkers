@@ -162,7 +162,7 @@ class Checkers:
                 available_moves.clear()
                 if killed:
                     self.computer_pieces -= 1
-                    available_moves = Checkers.Checkers.find_player_available_jumps(self.matrix, int(new_i), int(new_j))
+                    available_moves = Checkers.find_player_available_jumps(self.matrix, int(new_i), int(new_j))
                     if len(available_moves) > 0:
                         self.print_matrix()
 
@@ -243,34 +243,41 @@ class Checkers:
         available_jumps = []
         for m in range(BOARD_SIZE):
             for n in range(BOARD_SIZE):
-                if board[m][n][0] == BLACK_PIECE:
-                    if Checkers.check_moves(board, m, n, m + 1, n + 1):
-                        available_moves.append([m, n, m + 1, n + 1])
-                    if Checkers.check_moves(board, m, n, m + 1, n - 1):
-                        available_moves.append([m, n, m + 1, n - 1])
-                    if Checkers.check_jumps(board, m, n, m + 1, n - 1, m + 2, n - 2):
-                        available_jumps.append([m, n, m + 2, n - 2])
-                    if Checkers.check_jumps(board, m, n, m + 1, n + 1, m + 2, n + 2):
-                        available_jumps.append([m, n, m + 2, n + 2])
-                elif board[m][n][0] == BLACK_PIECE_CHECK:
-                    if Checkers.check_moves(board, m, n, m + 1, n + 1):
-                        available_moves.append([m, n, m + 1, n + 1])
-                    if Checkers.check_moves(board, m, n, m + 1, n - 1):
-                        available_moves.append([m, n, m + 1, n - 1])
-                    if Checkers.check_moves(board, m, n, m - 1, n - 1):
-                        available_moves.append([m, n, m - 1, n - 1])
-                    if Checkers.check_moves(board, m, n, m - 1, n + 1):
-                        available_moves.append([m, n, m - 1, n + 1])
-                    if Checkers.check_jumps(board, m, n, m + 1, n - 1, m + 2, n - 2):
-                        available_jumps.append([m, n, m + 2, n - 2])
-                    if Checkers.check_jumps(board, m, n, m - 1, n - 1, m - 2, n - 2):
-                        available_jumps.append([m, n, m - 2, n - 2])
-                    if Checkers.check_jumps(board, m, n, m - 1, n + 1, m - 2, n + 2):
-                        available_jumps.append([m, n, m - 2, n + 2])
-                    if Checkers.check_jumps(board, m, n, m + 1, n + 1, m + 2, n + 2):
-                        available_jumps.append([m, n, m + 2, n + 2])
+                available_jumps.extend(Checkers.find_available_jumps(board, m, n))
+                available_moves.extend(Checkers.find_available_moves_from(board, m, n))
         return (available_jumps, available_moves)[len(available_jumps) == 0]
 
+    @staticmethod
+    def find_available_jumps(board, m, n):
+        available_jumps = []
+        if Checkers.check_jumps(board, m, n, m + 1, n + 1, m + 2, n + 2): #Direita baixo
+            available_jumps.append([m, n, m + 2, n + 2])
+        if Checkers.check_jumps(board, m, n, m - 1, n - 1, m - 2, n - 2): #Esquerda cima
+            available_jumps.append([m, n, m - 2, n - 2])
+        if Checkers.check_jumps(board, m, n, m + 1, n - 1, m + 2, n - 2): #Esquerda baixo
+            available_jumps.append([m, n, m + 2, n - 2])
+        if Checkers.check_jumps(board, m, n, m - 1, n + 1, m - 2, n + 2): #Direita cima
+            available_jumps.append([m, n, m - 2, n + 2])
+        return available_jumps
+
+    @staticmethod
+    def find_available_moves_from(board, m, n):
+        result = []
+        if board[m][n][0] == BLACK_PIECE:
+            if Checkers.check_moves(board, m, n, m + 1, n + 1):
+                result.append([m, n, m + 1, n + 1])
+            if Checkers.check_moves(board, m, n, m + 1, n - 1):
+                result.append([m, n, m + 1, n - 1])
+        elif board[m][n][0] == BLACK_PIECE_CHECK:
+            if Checkers.check_moves(board, m, n, m + 1, n + 1):
+                result.append([m, n, m + 1, n + 1])
+            if Checkers.check_moves(board, m, n, m + 1, n - 1):
+                result.append([m, n, m + 1, n - 1])
+            if Checkers.check_moves(board, m, n, m - 1, n - 1):
+                result.append([m, n, m - 1, n - 1])
+            if Checkers.check_moves(board, m, n, m - 1, n + 1):
+                result.append([m, n, m - 1, n + 1])
+        return result
 
     # Encontra movimentos possíveis a partir das listas de movimentos e pulos - Jogador
     @staticmethod
@@ -282,19 +289,18 @@ class Checkers:
                 available_jumps.extend(Checkers.find_player_available_jumps(board, m, n))
                 available_moves.extend(Checkers.find_player_available_moves_from(board, m, n))
         return (available_jumps, available_moves)[len(available_jumps) == 0]
-    
 
     @staticmethod
     def find_player_available_jumps(board, m, n):
         available_jumps = []
-        if Checkers.check_player_jumps(board, m, n, m - 1, n - 1, m - 2, n - 2):
-            available_jumps.append([m, n, m - 2, n - 2])
-        if Checkers.check_player_jumps(board, m, n, m - 1, n + 1, m - 2, n + 2):
-            available_jumps.append([m, n, m - 2, n + 2])
-        if Checkers.check_player_jumps(board, m, n, m + 1, n - 1, m + 2, n - 2):
-            available_jumps.append([m, n, m + 2, n - 2])
-        if Checkers.check_player_jumps(board, m, n, m + 1, n + 1, m + 2, n + 2):
+        if Checkers.check_player_jumps(board, m, n, m + 1, n + 1, m + 2, n + 2): #Direita baixo
             available_jumps.append([m, n, m + 2, n + 2])
+        if Checkers.check_player_jumps(board, m, n, m - 1, n - 1, m - 2, n - 2): #Esquerda cima
+            available_jumps.append([m, n, m - 2, n - 2])
+        if Checkers.check_player_jumps(board, m, n, m + 1, n - 1, m + 2, n - 2): #Esquerda baixo
+            available_jumps.append([m, n, m + 2, n - 2])
+        if Checkers.check_player_jumps(board, m, n, m - 1, n + 1, m - 2, n + 2): #Direita cima
+            available_jumps.append([m, n, m - 2, n + 2])
         return available_jumps
     
     @staticmethod
@@ -314,6 +320,8 @@ class Checkers:
                 result.append([m, n, m - 1, n + 1])
             if Checkers.check_player_moves(board, m, n, m + 1, n - 1):
                 result.append([m, n, m + 1, n - 1])
+            #TODO Adicionar movimentos por todo mapa... Verificar como fazer quando der pra pular... Linha 303-304
+            #E incluir para o BOT também
         return result
         
 
@@ -397,6 +405,7 @@ class Checkers:
         tempoFinal = time.time()
         print("Computador moveu peça da (" + str(move[0]) + "," + str(move[1]) + ") para a posição (" + str(move[2]) + "," + str(move[3]) + ").")
         print("Levou " + str(tempoFinal - tempoInicial) + " segundos para pensar e jogar")
+        #FIXME não sei onde, mas eu perdi o jogo de proposito, e o BOT tinha uma dama e umas 4 pedras ainda. Caiu num loop infinito procurando jogada do jogador...
 
     # Calculo minimax - Alphabeta
     @staticmethod
