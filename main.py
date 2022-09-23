@@ -2,6 +2,11 @@ from copy import deepcopy
 import time
 import math
 
+#TODO
+# Remover peça adversária quando for comida (fluxo da DAMA quando está longe)
+# Inverter a ordem das peças (brancas em cima e pretas em baixo)
+# Analisar que, quando existe uma peça branca na diagonal da DAMA branca, ela tem que 'entender' como se fosse um bloqueio (serve para as peças pretas também)
+
 # Definindo cores utilizadas
 ansi_black = "\u001b[30m"
 ansi_red = "\u001b[31m"
@@ -188,16 +193,17 @@ class Checkers:
     # Checa se é possível pular a peça - Jogador
     @staticmethod
     def check_player_jumps(board, old_i, old_j, via_i, via_j, new_i, new_j):
-        iMultiplier = 1
-        jMultiplier = 1
-        if (old_i > new_i):
-            iMultiplier = -1
-        if (old_j > new_j):
-            jMultiplier = -1
-        for i in range(BOARD_SIZE):
-            if (board[old_i + i * iMultiplier][old_j + i * jMultiplier][0] == WHITE_PIECE):
-                return False
-            
+        #FIXME Ainda não funciona - acho que precisa distinguir entre dama e pedra também...
+        # iMultiplier = 1
+        # jMultiplier = 1
+        # if (old_i > new_i):
+        #     iMultiplier = -1
+        # if (old_j > new_j):
+        #     jMultiplier = -1
+        # for i in range(BOARD_SIZE):
+        #     if (board[old_i + i * iMultiplier][old_j + i * jMultiplier][0] == WHITE_PIECE):
+        #         return False
+                    
         if new_i > (BOARD_SIZE - 1) or new_i < 0:
             return False
         if new_j > (BOARD_SIZE - 1) or new_j < 0:
