@@ -137,7 +137,7 @@ class Checkers:
         
     @staticmethod
     def check_value_int_and_inside_board(value):
-        return value.isdigit() and int(value) >= 0 and int(value) < BOARD_SIZE
+        return (isinstance(value, int) or value.isdigit()) and int(value) >= 0 and int(value) < BOARD_SIZE
 
     # Recebe Input do Jogador
     def get_player_input(self):
@@ -192,15 +192,18 @@ class Checkers:
         # Analisar que, quando existe uma peça branca na diagonal da DAMA branca, ela tem que 'entender' como se fosse um bloqueio
         # (serve para as peças pretas também)
         
-        # iMultiplier = 1
-        # jMultiplier = 1
-        # if (old_i > new_i):
-        #     iMultiplier = -1
-        # if (old_j > new_j):
-        #     jMultiplier = -1
-        # for i in range(BOARD_SIZE):
-        #     if (board[old_i + i * iMultiplier][old_j + i * jMultiplier][0] == WHITE_PIECE):
-        #         return False
+        iMultiplier = 1
+        jMultiplier = 1
+        if board[old_i][old_j][0] == WHITE_PIECE_CHECK:
+            if (old_i > new_i):
+                iMultiplier = -1
+            if (old_j > new_j):
+                jMultiplier = -1
+            for i in range(BOARD_SIZE):
+                forI = old_i + i * iMultiplier
+                forJ = old_j + i * jMultiplier
+                if (Checkers.check_value_int_and_inside_board(forI) and Checkers.check_value_int_and_inside_board(forJ) and board[forI][forJ][0] == WHITE_PIECE):
+                    return False
                     
         if new_i > (BOARD_SIZE - 1) or new_i < 0:
             return False
@@ -473,12 +476,11 @@ class Checkers:
     # Realiza jogada
     @staticmethod
     def make_a_move(board, old_i, old_j, new_i, new_j, big_letter, queen_row):
-        #TODO Remover peça adversária quando for comida (fluxo da DAMA quando está longe)
-        
         killed = True
         letter = board[old_i][old_j][0]
         i_difference = old_i - new_i
         j_difference = old_j - new_j
+        
         if i_difference == -2 and j_difference == 2:
             board[old_i + 1][old_j - 1] = BLANK_SPACE
 
@@ -492,10 +494,10 @@ class Checkers:
             board[old_i + 1][old_j + 1] = BLANK_SPACE
         else:
             killed = False
-        
+
         if new_i == queen_row:
             letter = big_letter
-        
+
         board[old_i][old_j] = BLANK_SPACE
         board[new_i][new_j] = letter + str(new_i) + str(new_j)
         return killed
@@ -518,7 +520,7 @@ class Checkers:
         print("|                   Tenha um Bom Jogo!                  |")
         print("|=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=|")
         
-        # Inverter a ordem das peças (brancas em cima e pretas em baixo)
+        #TODO Inverter a ordem das peças (brancas em cima e pretas em baixo)
         
         while True:
             self.print_matrix()
