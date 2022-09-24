@@ -224,6 +224,22 @@ class Checkers:
     # Checa se é possível pular a peça
     @staticmethod
     def check_jump(board, old_i, old_j, via_i, via_j, new_i, new_j, player, adversary_pieces):
+        #FIXME Ainda não funciona - acho que precisa distinguir entre dama e pedra também...
+        # Analisar que, quando existe uma peça branca na diagonal da DAMA branca, ela tem que 'entender' como se fosse um bloqueio
+        # (serve para as peças pretas também)
+        
+        iMultiplier = 1
+        jMultiplier = 1
+        if board[old_i][old_j][0] in player:
+            if (old_i > new_i):
+                iMultiplier = -1
+            if (old_j > new_j):
+                jMultiplier = -1
+            for i in range(BOARD_SIZE):
+                forI = old_i + i * iMultiplier
+                forJ = old_j + i * jMultiplier
+                if (Checkers.is_value_inside_board(forI) and Checkers.is_value_inside_board(forJ) and board[forI][forJ][0] in player):
+                    return False
         if new_i > (BOARD_SIZE - 1) or new_i < 0:
             return False
         if new_j > (BOARD_SIZE - 1) or new_j < 0:
@@ -243,18 +259,21 @@ class Checkers:
     # Busca movimentos possíveis para o jogador levando em consideração para onde pode mover (multiplier)
     @staticmethod
     def find_player_available_moves(board, m, n, player, adversary_pieces, multiplier):
-        result = list()
+        result = []
         if Checkers.check_player_moves(board, m, n, m + (1 * multiplier), n - 1, player, adversary_pieces):
             result.append([m, n, m + (1 * multiplier), n - 1])
         if Checkers.check_player_moves(board, m, n, m + (1 * multiplier), n + 1, player, adversary_pieces):
             result.append([m, n, m + (1 * multiplier), n + 1])
         if board[m][n][0] == player[1]:
-            if Checkers.check_player_moves(board, m, n, m - 1, n + 1, player, adversary_pieces):
-                result.append([m, n, m - (1 * multiplier), n + 1])
-            if Checkers.check_player_moves(board, m, n, m - (1 * multiplier), n - 1, player, adversary_pieces):
-                result.append([m, n, m - (1 * multiplier), n - 1])
-            #TODO Adicionar movimentos por todo mapa... Verificar como fazer quando der pra pular... Linha 303-304
-            #E incluir para o BOT também
+            for i in range(BOARD_SIZE):
+                if Checkers.check_player_moves(board, m, n, m - (i  * multiplier), n + i, player, adversary_pieces):
+                    result.append([m, n, m - (i * multiplier), n + i])
+                if Checkers.check_player_moves(board, m, n, m - (i * multiplier), n - i, player, adversary_pieces):
+                    result.append([m, n, m - (i * multiplier), n - i])
+                if Checkers.check_player_moves(board, m, n, m + (i  * multiplier), n + i, player, adversary_pieces):
+                    result.append([m, n, m + (i * multiplier), n + i])
+                if Checkers.check_player_moves(board, m, n, m + (i * multiplier), n - i, player, adversary_pieces):
+                    result.append([m, n, m + (i * multiplier), n - i])
         return result
         
     # Checa se é possível mover a peça
@@ -389,8 +408,8 @@ class Checkers:
         letter = board[old_i][old_j][0]
         i_difference = old_i - new_i
         j_difference = old_j - new_j
-        i_multiplier = i_difference / abs(i_difference)
-        j_multiplier = j_difference / abs(j_difference)
+        i_multiplier = int(i_difference / abs(i_difference))
+        j_multiplier = int(j_difference / abs(j_difference))
         
         if abs(i_difference) >= 2 and abs(j_difference) >= 2:
             for i in range(1, abs(i_difference)):
@@ -402,10 +421,8 @@ class Checkers:
                         board[old_i + (i * i_multiplier)][old_j + (i * j_multiplier)] = BLANK_SPACE
         else:
             killed = False        
-        
         if new_i == queen_row:
             letter = turn_pieces[1]
-        
         board[old_i][old_j] = BLANK_SPACE
         board[new_i][new_j] = letter + str(new_i) + str(new_j)
         return killed
