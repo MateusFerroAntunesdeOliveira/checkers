@@ -42,22 +42,23 @@ class Node:
         current_state = deepcopy(self.board)
         available_moves = []
         children_states = []
-        big_letter = ""
+        turn_pieces = computer_pieces
+        adversary_pieces = player_pieces
         if minimizing_player is True:
             available_moves = Checkers.find_available_moves(current_state, computer_pieces)
-            big_letter = computer_pieces[1]
         # Verifica para o jogador
         else:
             available_moves = Checkers.find_available_moves(current_state, player_pieces)
-            big_letter = player_pieces[1]
-        queen_row = (BOARD_SIZE - 1, 0)[big_letter == BLACK_PIECE_CHECK]
+            turn_pieces = player_pieces
+            adversary_pieces = computer_pieces
+        queen_row = (BOARD_SIZE - 1, 0)[turn_pieces[1] == BLACK_PIECE_CHECK]
         for i in range(len(available_moves)):
             old_i = available_moves[i][0]
             old_j = available_moves[i][1]
             new_i = available_moves[i][2]
             new_j = available_moves[i][3]
             state = deepcopy(current_state)
-            Checkers.make_a_move(state, old_i, old_j, new_i, new_j, big_letter, queen_row)
+            Checkers.make_a_move(state, old_i, old_j, new_i, new_j, turn_pieces, queen_row, adversary_pieces)
             children_states.append(Node(state, [old_i, old_j, new_i, new_j]))
         return children_states
 
@@ -178,7 +179,7 @@ class Checkers:
             # Define que pode mover e move
             else:
                 
-                killed = Checkers.make_a_move(self.matrix, int(old_i), int(old_j), int(new_i), int(new_j), WHITE_PIECE_CHECK, 0)
+                killed = Checkers.make_a_move(self.matrix, int(old_i), int(old_j), int(new_i), int(new_j), self.player_pieces_txt, 0, self.computer_pieces_txt)
                 available_moves.clear()
                 if killed:
                     self.computer_pieces -= 1
@@ -383,27 +384,27 @@ class Checkers:
 
     # Realiza jogada
     @staticmethod
-    def make_a_move(board, old_i, old_j, new_i, new_j, big_letter, queen_row):
+    def make_a_move(board, old_i, old_j, new_i, new_j, turn_pieces, queen_row, adversary_pieces):
         killed = True
         letter = board[old_i][old_j][0]
         i_difference = old_i - new_i
         j_difference = old_j - new_j
-        if i_difference == -2 and j_difference == 2:
-            board[old_i + 1][old_j - 1] = BLANK_SPACE
-
-        elif i_difference == 2 and j_difference == 2:
-            board[old_i - 1][old_j - 1] = BLANK_SPACE
-
-        elif i_difference == 2 and j_difference == -2:
-            board[old_i - 1][old_j + 1] = BLANK_SPACE
-
-        elif i_difference == -2 and j_difference == -2:
-            board[old_i + 1][old_j + 1] = BLANK_SPACE
+        i_multiplier = i_difference / abs(i_difference)
+        j_multiplier = j_difference / abs(j_difference)
+        
+        if abs(i_difference) >= 2 and abs(j_difference) >= 2:
+            for i in range(1, abs(i_difference)):
+                curr_i = old_i + (i * i_multiplier)
+                curr_j = old_j + (i * j_multiplier)
+                if Checkers.is_value_inside_board(curr_i) and Checkers.is_value_inside_board(curr_j):
+                    mid_piece = board[curr_i][curr_j]
+                    if mid_piece[0].upper() == adversary_pieces[1]:
+                        board[old_i + (i * i_multiplier)][old_j + (i * j_multiplier)] = BLANK_SPACE
         else:
-            killed = False
+            killed = False        
         
         if new_i == queen_row:
-            letter = big_letter
+            letter = turn_pieces[1]
         
         board[old_i][old_j] = BLANK_SPACE
         board[new_i][new_j] = letter + str(new_i) + str(new_j)
