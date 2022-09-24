@@ -38,7 +38,8 @@ class Node:
         self.parent = parent
 
     # Checa e determina possíveis jogadas (em listas)
-    def get_children(self, minimizing_player, computer_pieces, player_pieces):
+    def get_children(self, minimizing_player, computer_pieces, player_pieces, player_pieces_qtd):
+
         current_state = deepcopy(self.board)
         available_moves = []
         children_states = []
@@ -98,6 +99,7 @@ class Checkers:
         for i in range(6, BOARD_SIZE, 1):
             for j in range(BOARD_SIZE):
                 if (i + j) % 2 == 1:
+                    # TESTE
                     self.matrix[i][j] = (WHITE_PIECE + str(i) + str(j))
 
     # Define e apresenta tabuleiro
@@ -162,6 +164,7 @@ class Checkers:
     def get_player_input(self):
         available_moves = Checkers.find_available_moves(self.matrix, self.player_pieces_txt)
         print(f"movimentos do jogador {len(available_moves)}")
+        print(available_moves)
         while len(available_moves) > 0:   
             if len(available_moves) == 0:
                 if self.computer_pieces > self.player_pieces:
@@ -178,7 +181,6 @@ class Checkers:
                 print(ansi_red + "Movimentação Inválida!" + ansi_reset)
             # Define que pode mover e move
             else:
-                
                 killed = Checkers.make_a_move(self.matrix, int(old_i), int(old_j), int(new_i), int(new_j), self.player_pieces_txt, 0, self.computer_pieces_txt)
                 available_moves.clear()
                 if killed:
@@ -211,34 +213,33 @@ class Checkers:
     @staticmethod
     def find_available_jumps(board, m, n, player, adversary_pieces):        
         available_jumps = list()
-        if Checkers.check_jump(board, m, n, m + 1, n + 1, m + 2, n + 2, player, adversary_pieces): #Direita baixo
-            available_jumps.append([m, n, m + 2, n + 2])
-        if Checkers.check_jump(board, m, n, m - 1, n - 1, m - 2, n - 2, player, adversary_pieces): #Esquerda cima
-            available_jumps.append([m, n, m - 2, n - 2])
-        if Checkers.check_jump(board, m, n, m + 1, n - 1, m + 2, n - 2, player, adversary_pieces): #Esquerda baixo
-            available_jumps.append([m, n, m + 2, n - 2])
-        if Checkers.check_jump(board, m, n, m - 1, n + 1, m - 2, n + 2, player, adversary_pieces): #Direita cima
-            available_jumps.append([m, n, m - 2, n + 2])
+        for i in range(1, BOARD_SIZE + 1):
+            if i == 1 or (i > 1 and board[m][n][0] == player[1]):
+                if Checkers.check_jump(board, m, n, m + i, n + i, m + (i+1), n + (i+1), player, adversary_pieces): #Direita baixo
+                    available_jumps.append([m, n, m + (i+1), n + (i+1)])
+                if Checkers.check_jump(board, m, n, m - i, n - i, m - (i+1), n - (i+1), player, adversary_pieces): #Esquerda cima
+                    available_jumps.append([m, n, m - (i+1), n - (i+1)])
+                if Checkers.check_jump(board, m, n, m + i, n - i, m + (i+1), n - (i+1), player, adversary_pieces): #Esquerda baixo
+                    available_jumps.append([m, n, m + (i+1), n - (i+1)])
+                if Checkers.check_jump(board, m, n, m - i, n + i, m - (i+1), n + (i+1), player, adversary_pieces): #Direita cima
+                    available_jumps.append([m, n, m - (i+1), n + (i+1)])
         return available_jumps
     
     # Checa se é possível pular a peça
     @staticmethod
     def check_jump(board, old_i, old_j, via_i, via_j, new_i, new_j, player, adversary_pieces):
-        #FIXME Ainda não funciona - acho que precisa distinguir entre dama e pedra também...
-        # Analisar que, quando existe uma peça branca na diagonal da DAMA branca, ela tem que 'entender' como se fosse um bloqueio
-        # (serve para as peças pretas também)
-        
-        iMultiplier = 1
-        jMultiplier = 1
-        if board[old_i][old_j][0] in player:
-            if (old_i > new_i):
+        if board[old_i][old_j][0] == player[1]: # 7, 4 // 5,2 
+            diff = abs(old_i - new_i) # 2
+            iMultiplier = 1
+            jMultiplier = 1
+            if (old_i < new_i): # False
                 iMultiplier = -1
-            if (old_j > new_j):
+            if (old_j < new_j): # False
                 jMultiplier = -1
-            for i in range(BOARD_SIZE):
-                forI = old_i + i * iMultiplier
-                forJ = old_j + i * jMultiplier
-                if (Checkers.is_value_inside_board(forI) and Checkers.is_value_inside_board(forJ) and board[forI][forJ][0] in player):
+            for i in range(1, diff):
+                forI = new_i + i * iMultiplier # 5 + (1 *  1) = 6 // 5 + (2 *  1) = 7 // 2 + (3 *  1) = 5 // 2 + (4 *  1) = 6
+                forJ = new_j + i * jMultiplier # 2 + (1 *  1) = 3 // 2 + (2 *  1) = 4 // 7 + (3 * -1) = 4 // 7 + (4 * -1) = 3
+                if (Checkers.is_value_inside_board(forI) and Checkers.is_value_inside_board(forJ) and board[forI][forJ][0].lower() == player[0]):
                     return False
         if new_i > (BOARD_SIZE - 1) or new_i < 0:
             return False
@@ -246,31 +247,31 @@ class Checkers:
             return False
         if board[via_i][via_j] == BLANK_SPACE:
             return False
-        if board[via_i][via_j][0] == player[0] or board[via_i][via_j][0] == player[1]:
+        if board[via_i][via_j][0].lower() == player[0]:
             return False
         if board[new_i][new_j] != BLANK_SPACE:
             return False
         if board[old_i][old_j] == BLANK_SPACE:
             return False
-        if board[old_i][old_j][0] == adversary_pieces[0] or board[old_i][old_j][0] == adversary_pieces[1]:
+        if board[old_i][old_j][0].lower() == adversary_pieces[0]:
             return False
         return True
     
     # Busca movimentos possíveis para o jogador levando em consideração para onde pode mover (multiplier)
     @staticmethod
     def find_player_available_moves(board, m, n, player, adversary_pieces, multiplier):
-        result = []
+        result = list()
         if Checkers.check_player_moves(board, m, n, m + (1 * multiplier), n - 1, player, adversary_pieces):
             result.append([m, n, m + (1 * multiplier), n - 1])
         if Checkers.check_player_moves(board, m, n, m + (1 * multiplier), n + 1, player, adversary_pieces):
             result.append([m, n, m + (1 * multiplier), n + 1])
         if board[m][n][0] == player[1]:
             for i in range(BOARD_SIZE):
-                if Checkers.check_player_moves(board, m, n, m - (i  * multiplier), n + i, player, adversary_pieces):
+                if Checkers.check_player_moves(board, m, n, m - (i * multiplier), n + i, player, adversary_pieces):
                     result.append([m, n, m - (i * multiplier), n + i])
                 if Checkers.check_player_moves(board, m, n, m - (i * multiplier), n - i, player, adversary_pieces):
                     result.append([m, n, m - (i * multiplier), n - i])
-                if Checkers.check_player_moves(board, m, n, m + (i  * multiplier), n + i, player, adversary_pieces):
+                if Checkers.check_player_moves(board, m, n, m + (i * multiplier), n + i, player, adversary_pieces):
                     result.append([m, n, m + (i * multiplier), n + i])
                 if Checkers.check_player_moves(board, m, n, m + (i * multiplier), n - i, player, adversary_pieces):
                     result.append([m, n, m + (i * multiplier), n - i])
@@ -279,6 +280,19 @@ class Checkers:
     # Checa se é possível mover a peça
     @staticmethod
     def check_player_moves(board, old_i, old_j, new_i, new_j, player, adversary_pieces):
+        diff = abs(old_i - new_i)
+        if diff > 1:
+            iMultiplier = 1
+            jMultiplier = 1
+            if (old_i > new_i):
+                iMultiplier = -1
+            if (old_j > new_j):
+                jMultiplier = -1
+            for i in range(1, diff - 1):
+                forI = old_i + i * iMultiplier
+                forJ = old_j + i * jMultiplier
+                if (Checkers.is_value_inside_board(forI) and Checkers.is_value_inside_board(forJ) and not board[forI][forJ] == BLANK_SPACE):
+                    return False
         if new_i > (BOARD_SIZE - 1) or new_i < 0:
             return False
         if new_j > (BOARD_SIZE - 1) or new_j < 0:
@@ -287,7 +301,7 @@ class Checkers:
             return False
         if board[new_i][new_j] != BLANK_SPACE:
             return False
-        if board[old_i][old_j][0] == adversary_pieces[0] or board[old_i][old_j][0] == adversary_pieces[1]:
+        if board[old_i][old_j][0].lower() == adversary_pieces[0]:
             return False
         if board[new_i][new_j] == BLANK_SPACE:
             return True
@@ -341,7 +355,7 @@ class Checkers:
         tempoInicial = time.time()
         current_state = Node(deepcopy(self.matrix))
 
-        first_computer_moves = current_state.get_children(True, self.computer_pieces_txt, self.player_pieces_txt)
+        first_computer_moves = current_state.get_children(True, self.computer_pieces_txt, self.player_pieces_txt, self.player_pieces)
         if len(first_computer_moves) == 0:
             if self.player_pieces > self.computer_pieces:
                 print(ansi_yellow + "Computador não tem mais movimentos disponíveis, e você tem peças sobrando." + ansi_reset)
@@ -358,7 +372,7 @@ class Checkers:
         dict = {}
         for i in range(len(first_computer_moves)):
             child = first_computer_moves[i]
-            value = Checkers.minimax(child.get_board(), 4, -math.inf, math.inf, False, self.computer_pieces_txt, self.player_pieces_txt)
+            value = Checkers.minimax(child.get_board(), 4, -math.inf, math.inf, False, self.computer_pieces_txt, self.player_pieces_txt, self.player_pieces)
             dict[value] = child
         if len(dict.keys()) == 0:
             print(ansi_green + "Computador está encurralado." + ansi_reset)
@@ -372,18 +386,17 @@ class Checkers:
         tempoFinal = time.time()
         print("Computador moveu peça da (" + str(move[0]) + "," + str(move[1]) + ") para a posição (" + str(move[2]) + "," + str(move[3]) + ").")
         print("Levou " + str(tempoFinal - tempoInicial) + " segundos para pensar e jogar")
-        #FIXME não sei onde, mas eu perdi o jogo de proposito, e o BOT tinha uma dama e umas 4 pedras ainda. Caiu num loop infinito procurando jogada do jogador...
 
     # Calculo minimax - Alphabeta
     @staticmethod
-    def minimax(board, depth, alpha, beta, maximizing_player, computer_pieces, player_pieces):
+    def minimax(board, depth, alpha, beta, maximizing_player, computer_pieces, player_pieces, player_pieces_qtd):
         if depth == 0:
             return Checkers.calculate_heuristics(board)
         current_state = Node(deepcopy(board))
         if maximizing_player is True:
             max_eval = -math.inf
-            for child in current_state.get_children(True, computer_pieces, player_pieces):
-                ev = Checkers.minimax(child.get_board(), depth - 1, alpha, beta, False, computer_pieces, player_pieces)
+            for child in current_state.get_children(True, computer_pieces, player_pieces, player_pieces_qtd):
+                ev = Checkers.minimax(child.get_board(), depth - 1, alpha, beta, False, computer_pieces, player_pieces, player_pieces_qtd)
                 max_eval = max(max_eval, ev)
                 alpha = max(alpha, ev)
                 if beta <= alpha:
@@ -392,8 +405,8 @@ class Checkers:
             return max_eval
         else:
             min_eval = math.inf
-            for child in current_state.get_children(False, computer_pieces, player_pieces):
-                ev = Checkers.minimax(child.get_board(), depth - 1, alpha, beta, True, computer_pieces, player_pieces)
+            for child in current_state.get_children(False, computer_pieces, player_pieces, player_pieces_qtd):
+                ev = Checkers.minimax(child.get_board(), depth - 1, alpha, beta, True, computer_pieces, player_pieces, player_pieces_qtd)
                 min_eval = min(min_eval, ev)
                 beta = min(beta, ev)
                 if beta <= alpha:
@@ -411,14 +424,11 @@ class Checkers:
         i_multiplier = int(i_difference / abs(i_difference))
         j_multiplier = int(j_difference / abs(j_difference))
         
-        if abs(i_difference) >= 2 and abs(j_difference) >= 2:
-            for i in range(1, abs(i_difference)):
-                curr_i = old_i + (i * i_multiplier)
-                curr_j = old_j + (i * j_multiplier)
-                if Checkers.is_value_inside_board(curr_i) and Checkers.is_value_inside_board(curr_j):
-                    mid_piece = board[curr_i][curr_j]
-                    if mid_piece[0].upper() == adversary_pieces[1]:
-                        board[old_i + (i * i_multiplier)][old_j + (i * j_multiplier)] = BLANK_SPACE
+        if abs(i_difference) >= 2:
+            capture_i = new_i + (1 * i_multiplier)
+            capture_j = new_j + (1 * j_multiplier)
+            if Checkers.is_value_inside_board(capture_i) and Checkers.is_value_inside_board(capture_j):
+                board[capture_i][capture_j] = BLANK_SPACE
         else:
             killed = False        
         if new_i == queen_row:
