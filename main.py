@@ -25,6 +25,7 @@ EXIT_CONDITION = "-1"
 SURRENDER_CONDITION = "s"
 BLANK_SPACE = "---"
 
+
 class Node:
     # Construtor da classe Nó
     def __init__(self, board, move=None, parent=None, value=None):
@@ -34,18 +35,18 @@ class Node:
         self.parent = parent
 
     # Checa e determina possíveis jogadas (em listas)
-    def get_children(self, minimizing_player):
+    def get_children(self, minimizing_player, computer_pieces, player_pieces):
         current_state = deepcopy(self.board)
         available_moves = []
         children_states = []
         big_letter = ""
         queen_row = 0
         if minimizing_player is True:
-            available_moves = Checkers.find_available_moves(current_state)
+            available_moves = Checkers.find_available_moves(current_state, computer_pieces)
             big_letter = BLACK_PIECE_CHECK
             queen_row = BOARD_SIZE - 1
         else:
-            available_moves = Checkers.find_player_available_moves(current_state)
+            available_moves = Checkers.find_available_moves(current_state, player_pieces)
             big_letter = WHITE_PIECE_CHECK
             queen_row = 0
         for i in range(len(available_moves)):
@@ -73,6 +74,8 @@ class Checkers:
         self.computer_pieces = 20
         self.player_pieces = 20
         self.available_moves = []
+        self.player_pieces_txt = None
+        self.computer_pieces_txt = None
 
         for row in self.matrix:
             for i in range(BOARD_SIZE):
@@ -116,18 +119,26 @@ class Checkers:
         
     @staticmethod
     def get_play_input(message):
+        # Inicializa as coordenadas de retorno
         coordinate_i = None
         coordinate_j = None
-        while None == coordinate_i or None == coordinate_j:
+        # Executa loop enquanto as entradas não estiverem corretas
+        while None is coordinate_i or None is coordinate_j:
+            # Requisita entrada do usuário
             entry = input(f"{message} [i,j]: ")
+            # Verifica se entrou com condição de finalizar o jogo
             if entry == EXIT_CONDITION:
                 print(ansi_cyan + "Jogo Acabou!" + ansi_reset)
                 exit()
+            # Verifica se entrou com condição de rendição
             elif entry == SURRENDER_CONDITION:
                 print(ansi_cyan + "Você se rendeu!" + ansi_reset)
                 exit()
+            # Divide os valores
             coordinates = entry.split(",")
-            if len(coordinates) == 2 and Checkers.check_value_int_and_inside_board(coordinates[0]) and Checkers.check_value_int_and_inside_board(coordinates[1]):
+            # Verifica se as coordenadas é vetor com tamanho 2
+            # Verifica se os valores entrados são inteiros e pertencem ao tabuleiro
+            if len(coordinates) == 2 and Checkers.is_value_inside_board(coordinates[0]) and Checkers.is_value_inside_board(coordinates[1]):
                 coordinate_i = int(coordinates[0])
                 coordinate_j = int(coordinates[1])
             else:
@@ -136,12 +147,13 @@ class Checkers:
         
         
     @staticmethod
-    def check_value_int_and_inside_board(value):
+    def is_value_inside_board(value):
         return value.isdigit() and int(value) >= 0 and int(value) < BOARD_SIZE
 
     # Recebe Input do Jogador
     def get_player_input(self):
-        available_moves = Checkers.find_player_available_moves(self.matrix)
+        available_moves = Checkers.find_available_moves(self.matrix, self.player_pieces_txt)
+        print(f"movimentos do jogador {len(available_moves)}")
         while len(available_moves) > 0:   
             if len(available_moves) == 0:
                 if self.computer_pieces > self.player_pieces:
@@ -162,168 +174,98 @@ class Checkers:
                 available_moves.clear()
                 if killed:
                     self.computer_pieces -= 1
-                    available_moves = Checkers.find_player_available_jumps(self.matrix, int(new_i), int(new_j))
+                    available_moves = Checkers.find_available_jumps(self.matrix, int(new_i), int(new_j),  self.player_pieces_txt)
                     if len(available_moves) > 0:
                         self.print_matrix()
 
-    # Checa se é possível pular a peça - Computador
+    # Encontra os possíveis movimentos para o jogador
     @staticmethod
-    def check_jumps(board, old_i, old_j, via_i, via_j, new_i, new_j):
-        if new_i > (BOARD_SIZE - 1) or new_i < 0:
-            return False
-        if new_j > (BOARD_SIZE - 1) or new_j < 0:
-            return False
-        if board[via_i][via_j] == BLANK_SPACE:
-            return False
-        if board[via_i][via_j][0] == BLACK_PIECE_CHECK or board[via_i][via_j][0] == BLACK_PIECE:
-            return False
-        if board[new_i][new_j] != BLANK_SPACE:
-            return False
-        if board[old_i][old_j] == BLANK_SPACE:
-            return False
-        if board[old_i][old_j][0] == WHITE_PIECE or board[old_i][old_j][0] == WHITE_PIECE_CHECK:
-            return False
-        return True
-
-    # Checa se é possível pular a peça - Jogador
-    @staticmethod
-    def check_player_jumps(board, old_i, old_j, via_i, via_j, new_i, new_j):
-        if new_i > (BOARD_SIZE - 1) or new_i < 0:
-            return False
-        if new_j > (BOARD_SIZE - 1) or new_j < 0:
-            return False
-        if board[via_i][via_j] == BLANK_SPACE:
-            return False
-        if board[via_i][via_j][0] == WHITE_PIECE_CHECK or board[via_i][via_j][0] == WHITE_PIECE:
-            return False
-        if board[new_i][new_j] != BLANK_SPACE:
-            return False
-        if board[old_i][old_j] == BLANK_SPACE:
-            return False
-        if board[old_i][old_j][0] == BLACK_PIECE or board[old_i][old_j][0] == BLACK_PIECE_CHECK:
-            return False
-        return True
-
-    # Checa se é possível mover a peça - Computador
-    @staticmethod
-    def check_moves(board, old_i, old_j, new_i, new_j):
-        if new_i > (BOARD_SIZE - 1) or new_i < 0:
-            return False
-        if new_j > (BOARD_SIZE - 1) or new_j < 0:
-            return False
-        if board[old_i][old_j] == BLANK_SPACE:
-            return False
-        if board[new_i][new_j] != BLANK_SPACE:
-            return False
-        if board[old_i][old_j][0] == WHITE_PIECE or board[old_i][old_j][0] == WHITE_PIECE_CHECK:
-            return False
-        if board[new_i][new_j] == BLANK_SPACE:
-            return True
-
-    # Checa se é possível mover a peça - Jogador
-    @staticmethod
-    def check_player_moves(board, old_i, old_j, new_i, new_j):
-        if new_i > (BOARD_SIZE - 1) or new_i < 0:
-            return False
-        if new_j > (BOARD_SIZE - 1) or new_j < 0:
-            return False
-        if board[old_i][old_j] == BLANK_SPACE:
-            return False
-        if board[new_i][new_j] != BLANK_SPACE:
-            return False
-        if board[old_i][old_j][0] == BLACK_PIECE or board[old_i][old_j][0] == BLACK_PIECE_CHECK:
-            return False
-        if board[new_i][new_j] == BLANK_SPACE:
-            return True
-
-    # Encontra movimentos possíveis a partir das listas de movimentos e pulos - Computador
-    @staticmethod
-    def find_available_moves(board):
+    def find_available_moves(board, player):
+        # Indica que deve caminhar para baixo do tabuleiro
+        multiplier = 1       
+        # Verifica se é peça branca
+        if player[0] == BLACK_PIECE:
+            # Indica que deve caminhar para cima do tabuleiro
+            multiplier = -1
+            
+        # Inicializa peças do adversário como sendo as brandas
+        adversary_pieces = (WHITE_PIECE, WHITE_PIECE_CHECK)
+        # Verifica se a peça do jogador é a branca
+        if player[0] == WHITE_PIECE:
+            # Altera as peças do adversário para as pretas
+            adversary_pieces = (BLACK_PIECE, BLACK_PIECE_CHECK)
         available_moves = []
         available_jumps = []
         for m in range(BOARD_SIZE):
             for n in range(BOARD_SIZE):
-                available_jumps.extend(Checkers.find_available_jumps(board, m, n))
-                available_moves.extend(Checkers.find_available_moves_from(board, m, n))
+                available_jumps += Checkers.find_available_jumps(board, m, n, player,adversary_pieces)
+                available_moves += Checkers.find_player_available_moves(board, m, n, player, adversary_pieces, multiplier)
         return (available_jumps, available_moves)[len(available_jumps) == 0]
 
     @staticmethod
-    def find_available_jumps(board, m, n):
+    def find_available_jumps(board, m, n, player, adversary_pieces):        
         available_jumps = []
-        if Checkers.check_jumps(board, m, n, m + 1, n + 1, m + 2, n + 2): #Direita baixo
+        if Checkers.check_jump(board, m, n, m + 1, n + 1, m + 2, n + 2, player, adversary_pieces): #Direita baixo
             available_jumps.append([m, n, m + 2, n + 2])
-        if Checkers.check_jumps(board, m, n, m - 1, n - 1, m - 2, n - 2): #Esquerda cima
+        if Checkers.check_jump(board, m, n, m - 1, n - 1, m - 2, n - 2, player, adversary_pieces): #Esquerda cima
             available_jumps.append([m, n, m - 2, n - 2])
-        if Checkers.check_jumps(board, m, n, m + 1, n - 1, m + 2, n - 2): #Esquerda baixo
+        if Checkers.check_jump(board, m, n, m + 1, n - 1, m + 2, n - 2, player, adversary_pieces): #Esquerda baixo
             available_jumps.append([m, n, m + 2, n - 2])
-        if Checkers.check_jumps(board, m, n, m - 1, n + 1, m - 2, n + 2): #Direita cima
-            available_jumps.append([m, n, m - 2, n + 2])
-        return available_jumps
-
-    @staticmethod
-    def find_available_moves_from(board, m, n):
-        result = []
-        if board[m][n][0] == BLACK_PIECE:
-            if Checkers.check_moves(board, m, n, m + 1, n + 1):
-                result.append([m, n, m + 1, n + 1])
-            if Checkers.check_moves(board, m, n, m + 1, n - 1):
-                result.append([m, n, m + 1, n - 1])
-        elif board[m][n][0] == BLACK_PIECE_CHECK:
-            if Checkers.check_moves(board, m, n, m + 1, n + 1):
-                result.append([m, n, m + 1, n + 1])
-            if Checkers.check_moves(board, m, n, m + 1, n - 1):
-                result.append([m, n, m + 1, n - 1])
-            if Checkers.check_moves(board, m, n, m - 1, n - 1):
-                result.append([m, n, m - 1, n - 1])
-            if Checkers.check_moves(board, m, n, m - 1, n + 1):
-                result.append([m, n, m - 1, n + 1])
-        return result
-
-    # Encontra movimentos possíveis a partir das listas de movimentos e pulos - Jogador
-    @staticmethod
-    def find_player_available_moves(board):
-        available_moves = []
-        available_jumps = []
-        for m in range(BOARD_SIZE):
-            for n in range(BOARD_SIZE):
-                available_jumps.extend(Checkers.find_player_available_jumps(board, m, n))
-                available_moves.extend(Checkers.find_player_available_moves_from(board, m, n))
-        return (available_jumps, available_moves)[len(available_jumps) == 0]
-
-    @staticmethod
-    def find_player_available_jumps(board, m, n):
-        available_jumps = []
-        if Checkers.check_player_jumps(board, m, n, m + 1, n + 1, m + 2, n + 2): #Direita baixo
-            available_jumps.append([m, n, m + 2, n + 2])
-        if Checkers.check_player_jumps(board, m, n, m - 1, n - 1, m - 2, n - 2): #Esquerda cima
-            available_jumps.append([m, n, m - 2, n - 2])
-        if Checkers.check_player_jumps(board, m, n, m + 1, n - 1, m + 2, n - 2): #Esquerda baixo
-            available_jumps.append([m, n, m + 2, n - 2])
-        if Checkers.check_player_jumps(board, m, n, m - 1, n + 1, m - 2, n + 2): #Direita cima
+        if Checkers.check_jump(board, m, n, m - 1, n + 1, m - 2, n + 2, player, adversary_pieces): #Direita cima
             available_jumps.append([m, n, m - 2, n + 2])
         return available_jumps
     
+    # Checa se é possível pular a peça
     @staticmethod
-    def find_player_available_moves_from(board, m, n):
+    def check_jump(board, old_i, old_j, via_i, via_j, new_i, new_j, player, adversary_pieces):
+        if new_i > (BOARD_SIZE - 1) or new_i < 0:
+            return False
+        if new_j > (BOARD_SIZE - 1) or new_j < 0:
+            return False
+        if board[via_i][via_j] == BLANK_SPACE:
+            return False
+        if board[via_i][via_j][0] == adversary_pieces[0] or board[via_i][via_j][0] == adversary_pieces[1]:
+            return False
+        if board[new_i][new_j] != BLANK_SPACE:
+            return False
+        if board[old_i][old_j] == BLANK_SPACE:
+            return False
+        if board[old_i][old_j][0] == player[0] or board[old_i][old_j][0] == player[1]:
+            return False
+        return True
+    
+    # Busca movimentos possíveis para o jogador levando em consideração para onde pode mover (multiplier)
+    @staticmethod
+    def find_player_available_moves(board, m, n, player, adversary_pieces, multiplier):
         result = []
-        if board[m][n][0] == WHITE_PIECE:
-            if Checkers.check_player_moves(board, m, n, m - 1, n - 1):
-                result.append([m, n, m - 1, n - 1])
-            if Checkers.check_player_moves(board, m, n, m - 1, n + 1):
-                result.append([m, n, m - 1, n + 1])
-        elif board[m][n][0] == WHITE_PIECE_CHECK:
-            if Checkers.check_player_moves(board, m, n, m - 1, n - 1):
-                result.append([m, n, m - 1, n - 1])
-            if Checkers.check_player_moves(board, m, n, m + 1, n + 1):
-                result.append([m, n, m + 1, n + 1])
-            if Checkers.check_player_moves(board, m, n, m - 1, n + 1):
-                result.append([m, n, m - 1, n + 1])
-            if Checkers.check_player_moves(board, m, n, m + 1, n - 1):
-                result.append([m, n, m + 1, n - 1])
+        if Checkers.check_player_moves(board, m, n, m + (1 * multiplier), n - (1 * multiplier), player, adversary_pieces):
+            result.append([m, n, m - (1 * multiplier), n - (1 * multiplier)])
+        if Checkers.check_player_moves(board, m, n, m + (1 * multiplier), n + (1 * multiplier), player, adversary_pieces):
+            result.append([m, n, m - (1 * multiplier), n + (1 * multiplier)])
+        if board[m][n][0] == player[1]:
+            if Checkers.check_player_moves(board, m, n, m - (1 * multiplier), n + (1 * multiplier), player, adversary_pieces):
+                result.append([m, n, m + (1 * multiplier), n + (1 * multiplier)])
+            if Checkers.check_player_moves(board, m, n, m - (1 * multiplier), n - (1 * multiplier), player, adversary_pieces):
+                result.append([m, n, m + (1 * multiplier), n - (1 * multiplier)])
             #TODO Adicionar movimentos por todo mapa... Verificar como fazer quando der pra pular... Linha 303-304
             #E incluir para o BOT também
         return result
         
+    # Checa se é possível mover a peça
+    @staticmethod
+    def check_player_moves(board, old_i, old_j, new_i, new_j, player, adversary_pieces):
+        if new_i > (BOARD_SIZE - 1) or new_i < 0:
+            return False
+        if new_j > (BOARD_SIZE - 1) or new_j < 0:
+            return False
+        if board[old_i][old_j] == BLANK_SPACE:
+            return False
+        if board[new_i][new_j] != BLANK_SPACE:
+            return False
+        if board[old_i][old_j][0] == adversary_pieces[0] or board[old_i][old_j][0] != adversary_pieces[1]:
+            return False
+        if board[new_i][new_j] == BLANK_SPACE:
+            return True
 
     # Calcula heurística das jogadas possíveis, avaliando o que é 'melhor'
     @staticmethod
@@ -374,7 +316,7 @@ class Checkers:
         tempoInicial = time.time()
         current_state = Node(deepcopy(self.matrix))
 
-        first_computer_moves = current_state.get_children(True)
+        first_computer_moves = current_state.get_children(True, self.computer_pieces_txt, self.player_pieces_txt)
         if len(first_computer_moves) == 0:
             if self.player_pieces > self.computer_pieces:
                 print(ansi_yellow + "Computador não tem mais movimentos disponíveis, e você tem peças sobrando." + ansi_reset)
@@ -462,6 +404,23 @@ class Checkers:
         board[new_i][new_j] = letter + str(new_i) + str(new_j)
         return killed
 
+    def get_player_turn(self):
+        while self.player_pieces_txt is None:
+            print("Insira o número da opção do jogador que deve iniciar:")
+            print("1. Jogador")
+            print("2. Computador")
+            try:
+                entry = int(input())
+                if entry == 1:
+                    self.player_pieces_txt = (WHITE_PIECE, WHITE_PIECE_CHECK)
+                    self.computer_pieces_txt = (BLACK_PIECE, BLACK_PIECE_CHECK)    
+                elif entry == 2:
+                    self.player_pieces_txt = (BLACK_PIECE, BLACK_PIECE_CHECK)
+                    self.computer_pieces_txt = (WHITE_PIECE, WHITE_PIECE_CHECK)
+                    self.player_turn = False 
+            except:
+                print("Valor inserido incorreto")
+
     def play(self):
         print("\n\n")
         print("|=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=|")
@@ -469,7 +428,7 @@ class Checkers:
         print("|                                                       |")
         print("| 1. As entradas são feitas no formato \"linha,coluna\".  |")
         print("| 2. O jogo pode ser finalizado digitando \"-1\"          |")
-        print(f"| 3. Você pode desistir digitando \"s\".                  |")
+        print("| 3. Você pode desistir digitando \"s\".                  |")
         print("|                                                       |")
         print("|                                 Desenvolvido por:     |")
         print("|                            Mateus Ferro               |")
@@ -479,7 +438,11 @@ class Checkers:
         print("|                                                       |")
         print("|                   Tenha um Bom Jogo!                  |")
         print("|=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=|")
-        while True:
+        
+        self.get_player_turn()
+        
+        game_over = False
+        while not game_over:
             self.print_matrix()
             if self.player_turn is True:
                 print(ansi_cyan + "\nTurno do Jogador" + ansi_reset)
@@ -491,11 +454,11 @@ class Checkers:
             if self.player_pieces == 0:
                 self.print_matrix()
                 print(ansi_red + "Sem peças disponíveis.\nVocê perdeu!" + ansi_reset)
-                exit()
+                game_over = True
             elif self.computer_pieces == 0:
                 self.print_matrix()
                 print(ansi_green + "O computador não tem mais peças.\nVocê ganhou!" + ansi_reset)
-                exit()
+                game_over = True
             self.player_turn = not self.player_turn
 
 if __name__ == '__main__':
