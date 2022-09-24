@@ -25,6 +25,9 @@ EXIT_CONDITION = "-1"
 SURRENDER_CONDITION = "s"
 BLANK_SPACE = "---"
 
+# Define as cores das peças de cada jogador
+COMPUTER_COLOR_PIECES = ansi_blue
+PLAYER_COLOR_PIECES = ansi_magenta
 
 class Node:
     # Construtor da classe Nó
@@ -40,15 +43,14 @@ class Node:
         available_moves = []
         children_states = []
         big_letter = ""
-        queen_row = 0
         if minimizing_player is True:
             available_moves = Checkers.find_available_moves(current_state, computer_pieces)
-            big_letter = BLACK_PIECE_CHECK
-            queen_row = BOARD_SIZE - 1
+            big_letter = computer_pieces[1]
+        # Verifica para o jogador
         else:
             available_moves = Checkers.find_available_moves(current_state, player_pieces)
-            big_letter = WHITE_PIECE_CHECK
-            queen_row = 0
+            big_letter = player_pieces[1]
+        queen_row = (BOARD_SIZE - 1, 0)[big_letter == BLACK_PIECE_CHECK]
         for i in range(len(available_moves)):
             old_i = available_moves[i][0]
             old_j = available_moves[i][1]
@@ -108,7 +110,12 @@ class Checkers:
             print(i, end="  | ")
             i += 1
             for elem in row:
-                print(elem, end=" ")
+                color = ansi_reset
+                if elem[0] in self.computer_pieces_txt:
+                    color = COMPUTER_COLOR_PIECES
+                elif elem[0] in self.player_pieces_txt:
+                    color = PLAYER_COLOR_PIECES
+                print(color + elem + ansi_reset, end=" ",)
             print("|")
         print("   |_________________________________________|")
         for j in range(BOARD_SIZE):
@@ -148,7 +155,7 @@ class Checkers:
         
     @staticmethod
     def is_value_inside_board(value):
-        return value.isdigit() and int(value) >= 0 and int(value) < BOARD_SIZE
+        return (isinstance(value, int) or value.isdigit()) and int(value) >= 0 and int(value) < BOARD_SIZE
 
     # Recebe Input do Jogador
     def get_player_input(self):
@@ -170,41 +177,39 @@ class Checkers:
                 print(ansi_red + "Movimentação Inválida!" + ansi_reset)
             # Define que pode mover e move
             else:
+                
                 killed = Checkers.make_a_move(self.matrix, int(old_i), int(old_j), int(new_i), int(new_j), WHITE_PIECE_CHECK, 0)
                 available_moves.clear()
                 if killed:
                     self.computer_pieces -= 1
-                    available_moves = Checkers.find_available_jumps(self.matrix, int(new_i), int(new_j),  self.player_pieces_txt)
+                    available_moves = Checkers.find_available_jumps(self.matrix, int(new_i), int(new_j),  self.player_pieces_txt, self.computer_pieces_txt)
                     if len(available_moves) > 0:
                         self.print_matrix()
 
     # Encontra os possíveis movimentos para o jogador
     @staticmethod
     def find_available_moves(board, player):
-        # Indica que deve caminhar para baixo do tabuleiro
-        multiplier = 1       
-        # Verifica se é peça branca
-        if player[0] == BLACK_PIECE:
-            # Indica que deve caminhar para cima do tabuleiro
-            multiplier = -1
-            
+        # Indica que deve caminhar para baixo no tabuleiro
+        multiplier = 1
         # Inicializa peças do adversário como sendo as brandas
         adversary_pieces = (WHITE_PIECE, WHITE_PIECE_CHECK)
-        # Verifica se a peça do jogador é a branca
+        # Verifica se é peça branca
         if player[0] == WHITE_PIECE:
+            # Indica que deve caminhar para cima do tabuleiro
+            multiplier = -1
             # Altera as peças do adversário para as pretas
             adversary_pieces = (BLACK_PIECE, BLACK_PIECE_CHECK)
-        available_moves = []
-        available_jumps = []
+        available_moves = list()
+        available_jumps = list()
         for m in range(BOARD_SIZE):
             for n in range(BOARD_SIZE):
-                available_jumps += Checkers.find_available_jumps(board, m, n, player,adversary_pieces)
-                available_moves += Checkers.find_player_available_moves(board, m, n, player, adversary_pieces, multiplier)
+                available_jumps.extend(Checkers.find_available_jumps(board, m, n, player,adversary_pieces))
+                available_moves.extend(Checkers.find_player_available_moves(board, m, n, player, adversary_pieces, multiplier))
         return (available_jumps, available_moves)[len(available_jumps) == 0]
 
     @staticmethod
     def find_available_jumps(board, m, n, player, adversary_pieces):        
-        available_jumps = []
+        available_jumps = list()
         if Checkers.check_jump(board, m, n, m + 1, n + 1, m + 2, n + 2, player, adversary_pieces): #Direita baixo
             available_jumps.append([m, n, m + 2, n + 2])
         if Checkers.check_jump(board, m, n, m - 1, n - 1, m - 2, n - 2, player, adversary_pieces): #Esquerda cima
@@ -224,29 +229,29 @@ class Checkers:
             return False
         if board[via_i][via_j] == BLANK_SPACE:
             return False
-        if board[via_i][via_j][0] == adversary_pieces[0] or board[via_i][via_j][0] == adversary_pieces[1]:
+        if board[via_i][via_j][0] == player[0] or board[via_i][via_j][0] == player[1]:
             return False
         if board[new_i][new_j] != BLANK_SPACE:
             return False
         if board[old_i][old_j] == BLANK_SPACE:
             return False
-        if board[old_i][old_j][0] == player[0] or board[old_i][old_j][0] == player[1]:
+        if board[old_i][old_j][0] == adversary_pieces[0] or board[old_i][old_j][0] == adversary_pieces[1]:
             return False
         return True
     
     # Busca movimentos possíveis para o jogador levando em consideração para onde pode mover (multiplier)
     @staticmethod
     def find_player_available_moves(board, m, n, player, adversary_pieces, multiplier):
-        result = []
-        if Checkers.check_player_moves(board, m, n, m + (1 * multiplier), n - (1 * multiplier), player, adversary_pieces):
-            result.append([m, n, m - (1 * multiplier), n - (1 * multiplier)])
-        if Checkers.check_player_moves(board, m, n, m + (1 * multiplier), n + (1 * multiplier), player, adversary_pieces):
-            result.append([m, n, m - (1 * multiplier), n + (1 * multiplier)])
+        result = list()
+        if Checkers.check_player_moves(board, m, n, m + (1 * multiplier), n - 1, player, adversary_pieces):
+            result.append([m, n, m + (1 * multiplier), n - 1])
+        if Checkers.check_player_moves(board, m, n, m + (1 * multiplier), n + 1, player, adversary_pieces):
+            result.append([m, n, m + (1 * multiplier), n + 1])
         if board[m][n][0] == player[1]:
-            if Checkers.check_player_moves(board, m, n, m - (1 * multiplier), n + (1 * multiplier), player, adversary_pieces):
-                result.append([m, n, m + (1 * multiplier), n + (1 * multiplier)])
-            if Checkers.check_player_moves(board, m, n, m - (1 * multiplier), n - (1 * multiplier), player, adversary_pieces):
-                result.append([m, n, m + (1 * multiplier), n - (1 * multiplier)])
+            if Checkers.check_player_moves(board, m, n, m - 1, n + 1, player, adversary_pieces):
+                result.append([m, n, m - (1 * multiplier), n + 1])
+            if Checkers.check_player_moves(board, m, n, m - (1 * multiplier), n - 1, player, adversary_pieces):
+                result.append([m, n, m - (1 * multiplier), n - 1])
             #TODO Adicionar movimentos por todo mapa... Verificar como fazer quando der pra pular... Linha 303-304
             #E incluir para o BOT também
         return result
@@ -262,7 +267,7 @@ class Checkers:
             return False
         if board[new_i][new_j] != BLANK_SPACE:
             return False
-        if board[old_i][old_j][0] == adversary_pieces[0] or board[old_i][old_j][0] != adversary_pieces[1]:
+        if board[old_i][old_j][0] == adversary_pieces[0] or board[old_i][old_j][0] == adversary_pieces[1]:
             return False
         if board[new_i][new_j] == BLANK_SPACE:
             return True
@@ -333,7 +338,7 @@ class Checkers:
         dict = {}
         for i in range(len(first_computer_moves)):
             child = first_computer_moves[i]
-            value = Checkers.minimax(child.get_board(), 4, -math.inf, math.inf, False)
+            value = Checkers.minimax(child.get_board(), 4, -math.inf, math.inf, False, self.computer_pieces_txt, self.player_pieces_txt)
             dict[value] = child
         if len(dict.keys()) == 0:
             print(ansi_green + "Computador está encurralado." + ansi_reset)
@@ -351,14 +356,14 @@ class Checkers:
 
     # Calculo minimax - Alphabeta
     @staticmethod
-    def minimax(board, depth, alpha, beta, maximizing_player):
+    def minimax(board, depth, alpha, beta, maximizing_player, computer_pieces, player_pieces):
         if depth == 0:
             return Checkers.calculate_heuristics(board)
         current_state = Node(deepcopy(board))
         if maximizing_player is True:
             max_eval = -math.inf
-            for child in current_state.get_children(True):
-                ev = Checkers.minimax(child.get_board(), depth - 1, alpha, beta, False)
+            for child in current_state.get_children(True, computer_pieces, player_pieces):
+                ev = Checkers.minimax(child.get_board(), depth - 1, alpha, beta, False, computer_pieces, player_pieces)
                 max_eval = max(max_eval, ev)
                 alpha = max(alpha, ev)
                 if beta <= alpha:
@@ -367,8 +372,8 @@ class Checkers:
             return max_eval
         else:
             min_eval = math.inf
-            for child in current_state.get_children(False):
-                ev = Checkers.minimax(child.get_board(), depth - 1, alpha, beta, True)
+            for child in current_state.get_children(False, computer_pieces, player_pieces):
+                ev = Checkers.minimax(child.get_board(), depth - 1, alpha, beta, True, computer_pieces, player_pieces)
                 min_eval = min(min_eval, ev)
                 beta = min(beta, ev)
                 if beta <= alpha:
