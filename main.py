@@ -49,13 +49,14 @@ class Node:
             available_moves = []
             turn_pieces = computer_pieces
             adversary_pieces = player_pieces
-            if minimizing_player is True:
-                available_moves = Checkers.find_available_moves(self.board, computer_pieces, self.captured)
-            # Verifica para o jogador
-            else:
-                available_moves = Checkers.find_available_moves(self.board, player_pieces, self.captured)
+            if minimizing_player is False:
                 turn_pieces = player_pieces
                 adversary_pieces = computer_pieces
+            if self.captured:
+                move = self.move
+                available_moves = Checkers.find_available_jumps(self.board, move[2], move[3], turn_pieces, adversary_pieces)
+            else:
+                available_moves = Checkers.find_available_moves(self.board, computer_pieces, self.captured)
             queen_row = (0, BOARD_SIZE - 1)[turn_pieces[1] == BLACK_PIECE_CHECK]
             for i in range(len(available_moves)):
                 old_i = available_moves[i][0]
@@ -64,12 +65,14 @@ class Node:
                 new_j = available_moves[i][3]
                 state = Node(deepcopy(self.board))
                 captured = Checkers.make_a_move(state.board, old_i, old_j, new_i, new_j, turn_pieces, queen_row, adversary_pieces)
-                node_to_add = Node(state.board, [old_i, old_j, new_i, new_j])
+                move = [old_i, old_j, new_i, new_j]
+                node_to_add = Node(state.board, move)
                 state.set_captured(captured)
+                state.set_move(move)
+                children_states.append(node_to_add)
                 if captured:
                     node_to_add.set_parent(self)
                     children_states.extend(state.get_children(minimizing_player, computer_pieces, player_pieces, recurrence - 1))
-                children_states.append(node_to_add)
         return children_states
 
     def set_value(self, value):
@@ -77,6 +80,9 @@ class Node:
         
     def set_parent(self, parent):
         self.parent = parent
+
+    def set_move(self, move):
+        self.move = move
         
     def set_captured(self, captured):
         self.captured = captured
@@ -115,7 +121,7 @@ class Checkers:
             for j in range(BOARD_SIZE):
                 if (i + j) % 2 == 1:
                     # TESTE
-                    self.matrix[i][j] = (WHITE_PIECE + str(i) + str(j))
+                    self.matrix[i][j] = (WHITE_PIECE_CHECK + str(i) + str(j))
                     
     def count_left_pieces(self):
         self.player_pieces = 0
@@ -213,7 +219,7 @@ class Checkers:
                 available_moves.clear()
                 if killed:
                     self.computer_pieces -= 1
-                    available_moves = Checkers.find_available_jumps(self.matrix, int(new_i), int(new_j),  self.player_pieces_txt, self.computer_pieces_txt)
+                    available_moves = Checkers.find_available_jumps(self.matrix, int(new_i), int(new_j), self.player_pieces_txt, self.computer_pieces_txt)
                     if len(available_moves) > 0:
                         self.print_matrix()
                         print(ansi_cyan + "Bela Jogada, fez uma Dobradinha! Jogue novamente..." + ansi_reset)
@@ -237,7 +243,7 @@ class Checkers:
         available_jumps = list()
         for m in range(BOARD_SIZE):
             for n in range(BOARD_SIZE):
-                available_jumps.extend(Checkers.find_available_jumps(board, m, n, player,adversary_pieces))
+                available_jumps.extend(Checkers.find_available_jumps(board, m, n, player, adversary_pieces))
                 if not captured:
                     available_moves.extend(Checkers.find_player_available_moves(board, m, n, player, adversary_pieces, multiplier))
         return (available_jumps, available_moves)[len(available_jumps) == 0]
@@ -268,10 +274,16 @@ class Checkers:
                 iMultiplier = -1
             if (old_j < new_j): # False
                 jMultiplier = -1
+            adversary_pieces_counter = 0
             for i in range(1, diff):
                 forI = new_i + i * iMultiplier # 5 + (1 *  1) = 6 // 5 + (2 *  1) = 7 // 2 + (3 *  1) = 5 // 2 + (4 *  1) = 6
                 forJ = new_j + i * jMultiplier # 2 + (1 *  1) = 3 // 2 + (2 *  1) = 4 // 7 + (3 * -1) = 4 // 7 + (4 * -1) = 3
-                if (Checkers.is_value_inside_board(forI) and Checkers.is_value_inside_board(forJ) and board[forI][forJ][0].lower() == player[0]):
+                if Checkers.is_value_inside_board(forI) and Checkers.is_value_inside_board(forJ):
+                    if board[forI][forJ][0].lower() == adversary_pieces[0]:
+                        adversary_pieces_counter += 1
+                    if board[forI][forJ][0].lower() == player[0]:
+                        return False
+                if adversary_pieces_counter > 1:
                     return False
         if new_i > (BOARD_SIZE - 1) or new_i < 0:
             return False
@@ -312,18 +324,18 @@ class Checkers:
     # Checa se é possível mover a peça
     @staticmethod
     def check_player_moves(board, old_i, old_j, new_i, new_j, player, adversary_pieces):
-        diff = abs(old_i - new_i)
-        if diff > 1:
+        diff = abs(old_i - new_i) #old 1,2; new 3,4
+        if diff > 1: # 2
             iMultiplier = 1
             jMultiplier = 1
-            if (old_i > new_i):
+            if (old_i > new_i): # 1
                 iMultiplier = -1
-            if (old_j > new_j):
+            if (old_j > new_j): # 1
                 jMultiplier = -1
-            for i in range(1, diff - 1):
-                forI = old_i + i * iMultiplier
-                forJ = old_j + i * jMultiplier
-                if (Checkers.is_value_inside_board(forI) and Checkers.is_value_inside_board(forJ) and not board[forI][forJ] == BLANK_SPACE):
+            for i in range(1, diff): # 1
+                forI = old_i + i * iMultiplier # 2 + (1 * 1) = 3 // 2 + (2 * 1) = 4 // 2 + (3 * 1) = 5
+                forJ = old_j + i * jMultiplier # 3 + (1 * 1) = 4 // 3 + (2 * 1) = 5 // 3 + (3 * 1) = 6
+                if (Checkers.is_value_inside_board(forI) and Checkers.is_value_inside_board(forJ) and not (board[forI][forJ] == BLANK_SPACE)):
                     return False
         if new_i > (BOARD_SIZE - 1) or new_i < 0:
             return False
@@ -356,25 +368,21 @@ class Checkers:
                         result += (BOARD_SIZE - 1)
                     if i + 1 > (BOARD_SIZE - 1) or j - 1 < 0 or i - 1 < 0 or j + 1 > (BOARD_SIZE - 1):
                         continue
-                    if (board[i + 1][j - 1][0] == player_pieces[0] or board[i + 1][j - 1][0] == player_pieces[1]) and board[i - 1][
-                        j + 1] == BLANK_SPACE:
+                    if (board[i + 1][j - 1][0] == player_pieces[0] or board[i + 1][j - 1][0] == player_pieces[1]) and board[i - 1][j + 1] == BLANK_SPACE:
                         result -= 3
                     if (board[i + 1][j + 1][0] == player_pieces[0] or board[i + 1][j + 1] == player_pieces[1]) and board[i - 1][j - 1] == BLANK_SPACE:
                         result -= 3
                     if board[i - 1][j - 1][0] == player_pieces[1] and board[i + 1][j + 1] == BLANK_SPACE:
                         result -= 3
-
                     if board[i - 1][j + 1][0] == player_pieces[1] and board[i + 1][j - 1] == BLANK_SPACE:
                         result -= 3
                     if i + 2 > (BOARD_SIZE - 1) or i - 2 < 0:
                         continue
-                    if (board[i + 1][j - 1][0] == player_pieces[1] or board[i + 1][j - 1][0] == player_pieces[0]) and board[i + 2][
-                        j - 2] == BLANK_SPACE:
+                    if (board[i + 1][j - 1][0] == player_pieces[1] or board[i + 1][j - 1][0] == player_pieces[0]) and board[i + 2][j - 2] == BLANK_SPACE:
                         result += 6
                     if i + 2 > (BOARD_SIZE - 1) or j + 2 > (BOARD_SIZE - 1):
                         continue
-                    if (board[i + 1][j + 1][0] == player_pieces[1] or board[i + 1][j + 1][0] == player_pieces[0]) and board[i + 2][
-                        j + 2] == BLANK_SPACE:
+                    if (board[i + 1][j + 1][0] == player_pieces[1] or board[i + 1][j + 1][0] == player_pieces[0]) and board[i + 2][j + 2] == BLANK_SPACE:
                         result += 6
 
                 elif board[i][j][0] == player_pieces[0] or board[i][j][0] == player_pieces[1]:
@@ -416,21 +424,13 @@ class Checkers:
         move = dict[max(dict)].move
         self.matrix = new_board
         tempoFinal = time.time()
-        # main = dict[max(dict)]
-        # self.matrix = dict[max(dict)].get_board()
-        # list_moves = list()
-        # temp = main
-        # while temp.parent != None:
-        #     list_moves.append(temp.move)
-        tempoFinal = time.time()
+
         diffTime = tempoFinal - tempoInicial
         if (diffTime) > 120:
             print(ansi_yellow + "Computador está demorando muito para pensar..." + ansi_reset)
         if (diffTime) > 240:
             print(ansi_red + "Computador demorou muito para pensar! Jogo finalizado..." + ansi_reset)
             exit()
-        # for move in reversed(list_moves):
-            # print("Computador moveu peça da (" + str(move[0]) + "," + str(move[1]) + ") para a posição (" + str(move[2]) + "," + str(move[3]) + ").")
         print("Computador moveu peça da (" + str(move[0]) + "," + str(move[1]) + ") para a posição (" + str(move[2]) + "," + str(move[3]) + ").")
         print("E levou " + str(round(diffTime, 4)) + " segundos para pensar e jogar.")
 
@@ -466,6 +466,7 @@ class Checkers:
     def make_a_move(board, old_i, old_j, new_i, new_j, turn_pieces, queen_row, adversary_pieces):
         killed = False
         letter = board[old_i][old_j][0]
+        diff = abs(old_i - new_i)
         i_difference = old_i - new_i
         j_difference = old_j - new_j
         i_multiplier = int(i_difference / abs(i_difference))
@@ -473,9 +474,10 @@ class Checkers:
         if abs(i_difference) >= 2:
             capture_i = new_i + (1 * i_multiplier)
             capture_j = new_j + (1 * j_multiplier)
-            if Checkers.is_value_inside_board(capture_i) and Checkers.is_value_inside_board(capture_j):
-                board[capture_i][capture_j] = BLANK_SPACE
-                killed = True       
+            for i in range(1, diff):
+                if (Checkers.is_value_inside_board(capture_i) and Checkers.is_value_inside_board(capture_j) and board[capture_i][capture_j][0].lower() == adversary_pieces[0].lower()):
+                    killed = True
+                    board[capture_i][capture_j] = BLANK_SPACE
         if new_i == queen_row:
             letter = turn_pieces[1]
         board[old_i][old_j] = BLANK_SPACE
