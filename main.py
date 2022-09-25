@@ -412,12 +412,16 @@ class Checkers:
             print(ansi_green + "VOCÊ GANHOU!" + ansi_reset)
             print("=-"*BOARD_SIZE+"=")
             exit()
-        main = dict[max(dict)]
-        self.matrix = dict[max(dict)].get_board()
-        list_moves = list()
-        temp = main
-        while temp.parent != None:
-            list_moves.append(temp.move)
+        new_board = dict[max(dict)].get_board()
+        move = dict[max(dict)].move
+        self.matrix = new_board
+        tempoFinal = time.time()
+        # main = dict[max(dict)]
+        # self.matrix = dict[max(dict)].get_board()
+        # list_moves = list()
+        # temp = main
+        # while temp.parent != None:
+        #     list_moves.append(temp.move)
         tempoFinal = time.time()
         diffTime = tempoFinal - tempoInicial
         if (diffTime) > 120:
@@ -425,9 +429,10 @@ class Checkers:
         if (diffTime) > 240:
             print(ansi_red + "Computador demorou muito para pensar! Jogo finalizado..." + ansi_reset)
             exit()
-        for move in reversed(list_moves):
-            print("Computador moveu peça da (" + str(move[0]) + "," + str(move[1]) + ") para a posição (" + str(move[2]) + "," + str(move[3]) + ").")
-        print("Levou " + str(diffTime) + " segundos para pensar e jogar")
+        # for move in reversed(list_moves):
+            # print("Computador moveu peça da (" + str(move[0]) + "," + str(move[1]) + ") para a posição (" + str(move[2]) + "," + str(move[3]) + ").")
+        print("Computador moveu peça da (" + str(move[0]) + "," + str(move[1]) + ") para a posição (" + str(move[2]) + "," + str(move[3]) + ").")
+        print("E levou " + str(round(diffTime, 4)) + " segundos para pensar e jogar.")
 
     # Calculo minimax - Alphabeta
     @staticmethod
