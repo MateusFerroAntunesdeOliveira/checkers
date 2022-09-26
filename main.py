@@ -29,6 +29,7 @@ BLANK_SPACE = "---"
 COMPUTER_COLOR_PIECES = ansi_blue
 PLAYER_COLOR_PIECES = ansi_magenta
 
+# Define máximo de turnos a frente que o computador irá analisar
 MAX_TURNS_AHEAD = 5
 
 class Node:
@@ -108,20 +109,20 @@ class Checkers:
         self.position_computer()
         self.position_player()
 
-    # Define posições do computador (3 primeiras linhas - peças pretas)
+    # Define posições do computador
     def position_computer(self):
         for i in range(4):
             for j in range(BOARD_SIZE):
                 if (i + j) % 2 == 1:
                     self.matrix[i][j] = (BLACK_PIECE + str(i) + str(j))
 
-    # Define posições do jogador (3 últimas linhas - peças brancas)
+    # Define posições do jogador
     def position_player(self):
         for i in range(6, BOARD_SIZE, 1):
             for j in range(BOARD_SIZE):
                 if (i + j) % 2 == 1:
                     # TESTE
-                    self.matrix[i][j] = (WHITE_PIECE_CHECK + str(i) + str(j))
+                    self.matrix[i][j] = (WHITE_PIECE + str(i) + str(j))
                     
     def count_left_pieces(self):
         self.player_pieces = 0
@@ -189,7 +190,6 @@ class Checkers:
                 print(ansi_red + "Entrada Inválida!" + ansi_reset)
         return coordinate_i, coordinate_j
         
-        
     @staticmethod
     def is_value_inside_board(value):
         return (isinstance(value, int) or value.isdigit()) and int(value) >= 0 and int(value) < BOARD_SIZE
@@ -199,15 +199,7 @@ class Checkers:
         available_moves = Checkers.find_available_moves(self.matrix, self.player_pieces_txt)
         print(f"Movimentos disponíveis do jogador: {len(available_moves)}")
         print(available_moves)
-        while len(available_moves) > 0:   
-            if len(available_moves) == 0:
-                if self.computer_pieces > self.player_pieces:
-                    print(
-                        ansi_red + "Você não possui movimentos disponíveis, e tem menos peças que o adversário. Você Perdeu!" + ansi_reset)
-                else:
-                    print(ansi_yellow + "Você não tem movimentos disponíveis.\nJogo Terminado!" + ansi_reset)
-                exit()
-            
+        while len(available_moves) > 0:
             old_i, old_j = Checkers.get_play_input("Escolha a peca")
             new_i, new_j = Checkers.get_play_input("Para onde")
             move = [int(old_i), int(old_j), int(new_i), int(new_j)]
