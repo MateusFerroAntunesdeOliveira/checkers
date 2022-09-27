@@ -30,7 +30,7 @@ COMPUTER_COLOR_PIECES = ansi_blue
 PLAYER_COLOR_PIECES = ansi_magenta
 
 # Define máximo de turnos a frente que o computador irá analisar
-MAX_TURNS_AHEAD = 5
+MAX_TURNS_AHEAD = 6
 
 class Node:
     # Construtor da classe Nó
